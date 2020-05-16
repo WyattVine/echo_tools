@@ -1,7 +1,23 @@
 import pandas as pd
 import numpy as np
 import scipy as sp
+from scipy import signal
 import matplotlib.pyplot as plt
+import warnings
+
+def generate_axes(shape,**kwargs):
+
+    '''
+    shape : tuple (num rows, num columns)
+    '''
+
+    figsize = kwargs.get('figsize', (4*shape[1], 3*shape[0]))
+
+    fig, axes = plt.figure(figsize=figsize), []
+    for j in range(shape[0]):
+        for i in range(shape[1]):
+            axes.append(plt.subplot2grid(shape=shape, loc=(j, i)))
+    return(fig,axes)
 
 
 def remove_linear_baseline(x,y,x1,x2,x3,x4):
@@ -27,6 +43,33 @@ def remove_linear_baseline(x,y,x1,x2,x3,x4):
     return(np.subtract(y,fit)[0])
 
 
+def remove_polynomial_baseline(x, y, x1, x2, x3, x4, order=1):
+    '''
+    x = np array
+    x1,x2,x3,x4 = values within x corresponding to the baseline
+    y = np array
+    order = order of polynomial (2 or 3)
+    '''
+
+    if order == 1:
+        poly = lambda x, a, b: a + b*x
+    if order == 2:
+        poly = lambda x, a, b, c: a + b*x + c*x**2
+    if order == 3:
+        poly = lambda x, a, b, c, d: a + b*x + c*x**2 + d*x**3
+
+    data = pd.DataFrame.from_dict({'x': x, 'y': y})
+    _cut1 = data[(data['x'] >= x1) & (data['x'] <= x2)]
+    _cut2 = data[(data['x'] >= x3) & (data['x'] <= x4)]
+    rdata = pd.concat((_cut1, _cut2))
+
+    _x = np.array(rdata['x'])
+    _y = np.array(rdata['y'])
+    popt, pcov = sp.optimize.curve_fit(poly, _x, _y)
+    fit = np.array([poly(x, *popt)])
+
+    return (np.subtract(y, fit)[0])
+
 class circle():
     
     def __init__(self,r,x0=0,y0=0):
@@ -48,23 +91,31 @@ class Echo_trace():
     Basic representation of a single echo time trace.
     '''
     
-    def __init__(self,time,I,Q,**kwargs):
+    def __init__(self,I,Q,time=None,**kwargs):
         
         '''
-        time = np.array
-        I = np.array
-        Q = np.array
+        time = np.ndarray or pd.core.series.Series
+        I = np.ndarray or pd.core.series.Series
+        Q = np.ndarray or pd.core.series.Series
         '''
-        
-        self.data = pd.DataFrame(columns=('time','I','Q','S','IQ'))
-        self.data['time'] = time
-        self.data['I'] = I
-        self.data['Q'] = Q
-        self.data['S'] = I + 1j*Q
+
+
+        self.data = pd.DataFrame(columns=('time', 'I', 'Q', 'S', 'IQ'))
+
+        if (type(I) == type(Q)) and (type(I) == np.ndarray):
+            self.data['time'] = time
+            self.data['I'] = I
+            self.data['Q'] = Q
+        elif (type(I) == type(Q)) and (type(I) == pd.core.series.Series):
+            self.data['time'] = np.array(I.index)
+            self.data['I'] = np.array(I)
+            self.data['Q'] = np.array(Q)
+
+        self.data['S'] = self.data['I'] + 1j*self.data['Q']
         self.data['IQ'] = np.abs(self.data['S'])
-        self.dt = time[1] - time[0]
-        
+        self.dt = self.data['time'].iloc[2] - self.data['time'].iloc[1]
         self._discriminator_flag = False #True when discriminators have been created
+        self.save_loc = kwargs.get('save_loc',None)
         
     def rotate(self,theta):
         '''
@@ -80,57 +131,76 @@ class Echo_trace():
         min_max_times = [self.data['time'].min(),self.data['time'].max()]
         I_lims = kwargs.get('I_lims',[-0.5,0.5])
         Q_lims = kwargs.get('I_lims', [-0.5, 0.5])
+        IQ_lims = kwargs.get('IQ_lims',[-0.05,1.0])
+        IQ_style = kwargs.get('IQ_style','complex_circle') #'complex_circle' or 'magnitude'
+        axes = kwargs.get('axes',None) #user can supply ax1,ax2,ax3 which will be returned to them
 
-        shape = (3,1)
-        plt.figure(figsize=(4,12))
-        ax1 = plt.subplot2grid(shape=shape,loc=(0,0))
-        ax2 = plt.subplot2grid(shape=shape,loc=(1,0))
-        ax3 = plt.subplot2grid(shape=shape,loc=(2,0),rowspan=1)
-        
-        ax1.plot(self.data['time'],self.data['I'])
-        ax2.plot(self.data['time'],self.data['Q'])
-        for i in [ax1,ax2]:
-            i.set_xlabel('Time (us)')
-            i.plot(min_max_times,[0,0],c='black',alpha=0.3)
-            i.set_xlim(min_max_times)
-        ax1.set_ylim(I_lims)
-        ax2.set_ylim(Q_lims)
-        ax1.set_ylabel('I (V)')
-        ax2.set_ylabel('Q (V)')
+        if not axes:
+            fig, [ax1,ax2,ax3] = generate_axes(shape=(3,1))
+        else:
+            ax1,ax2,ax3 = axes
 
-        ax3.plot(self.data['I'],self.data['Q'])
-        ax3.set_xlim(I_lims)
-        ax3.set_ylim(Q_lims)
-        ax3.plot(I_lims,[0,0],c='black',alpha=0.3)
-        ax3.plot([0,0],Q_lims,c='black',alpha=0.3)
-        ax3.set_xlabel('I (V)')
-        ax3.set_ylabel('Q (V)')
+        for i in zip([ax1,ax2],['I','Q'],[I_lims,Q_lims],['I (V)','Q (V)']):
+            i[0].plot(self.data['time'],self.data[i[1]])
+            i[0].set_xlabel('Time (us)')
+            i[0].plot(min_max_times,[0,0],c='black',alpha=0.3)
+            i[0].set_xlim(min_max_times)
+            i[0].set_ylim(i[2])
+            i[0].set_ylabel(i[3])
+
+        if IQ_style == 'complex_circle':
+            ax3.plot(self.data['I'],self.data['Q'])
+            ax3.set_xlim(I_lims)
+            ax3.set_ylim(Q_lims)
+            ax3.plot(I_lims,[0,0],c='black',alpha=0.3)
+            ax3.plot([0,0],Q_lims,c='black',alpha=0.3)
+            ax3.set_xlabel('I (V)')
+            ax3.set_ylabel('Q (V)')
+        elif IQ_style == 'magnitude':
+            ax3.plot(self.data['time'],self.data['IQ'])
+            ax3.plot(min_max_times, [0,0], c='black', alpha=0.3)
+            ax3.set_xlim(min_max_times)
+            ax3.set_ylim(IQ_lims)
+            ax3.set_xlabel('Time (us)')
+            ax3.set_ylabel('|IQ| (V)')
 
         if self._discriminator_flag:
-            discriminator_circle = circle(r=self.discriminators['IQ'])
-            ax3.plot(discriminator_circle.coords.real,discriminator_circle.coords.imag,c='r')
             ax1.fill_between(min_max_times,[self.discriminators['I'],self.discriminators['I']],[-1*self.discriminators['I'],-1*self.discriminators['I']],color='r',alpha=0.2)
             ax2.fill_between(min_max_times,[self.discriminators['Q'],self.discriminators['Q']],[-1*self.discriminators['Q'],-1*self.discriminators['Q']],color='r',alpha=0.2)
+            if IQ_style == 'complex_circle':
+                discriminator_circle = circle(r=self.discriminators['IQ'])
+                ax3.plot(discriminator_circle.coords.real, discriminator_circle.coords.imag, c='r')
+            elif IQ_style == 'magnitude':
+                ax3.fill_between(min_max_times, [self.discriminators['IQ'], self.discriminators['IQ']],[0,0], color='r', alpha=0.2)
 
-        plt.tight_layout()
-        plt.show()
+        if not axes:
+            plt.tight_layout()
+            save_name = kwargs.get('save_name',None)
+            if save_name:
+                plt.savefig(self.save_loc + save_name)
+            else:
+                plt.show()
+        else:
+            return(ax1,ax2,ax3)
         
-    def create_discriminators(self,t1,t2,t3=None,t4=None):
+    def create_discriminators(self,t1,t2,t3=None,t4=None,**kwargs):
         '''
         Using t1 - t4 it creates single values corresponding to the noise in I, Q, and IQ that can be used for
-        slicing self.data
+        slicing self.data.
+
+        std_mutliplier : discriminators are multiples of the standard deviation in each signal. Supplied via kwargs
         '''
-        
+
+        std_multiplier = kwargs.get('std_multiplier',1)
+
         _generate_reduced = lambda ta,tb:  self.data[(self.data['time'] >= ta) & (self.data['time'] <= tb)]
         _reduced = _generate_reduced(t1,t2)
         if t3:
             _reduced = pd.concat((_reduced,_generate_reduced(t3,t4)))
             
         self.discriminators = {}
-        for i in ['I','Q']:
-            vals = np.array(_reduced[i])
-            self.discriminators[i] = max(vals.max(),-1*vals.min())
-        self.discriminators['IQ'] = np.array(_reduced['IQ']).max()
+        for i in ['I','Q','IQ']:
+            self.discriminators[i] = std_multiplier*np.std(_reduced[i])
 
         self._discriminator_flag = True
         
@@ -148,7 +218,11 @@ class Echo_trace():
         self.integrated_echo['IQ'] = (_IQ - self.discriminators['IQ']).sum()*self.dt
         self.integrated_echo['I'] = (np.abs(_I)-self.discriminators['I']).sum()*self.dt
         self.integrated_echo['Q'] = (np.abs(_Q)-self.discriminators['Q']).sum()*self.dt
-        
+
+        self.integrated_echo_uncertainty = {}
+        for i in zip([_I,_Q,_IQ],['I','Q','IQ']):
+            self.integrated_echo_uncertainty[i[1]] = i[0].count()*self.discriminators[i[1]]*self.dt
+
         # self.IQ_integrated_echo = _IQ.sum()*self.dt
         # self.I_integrated_echo = _I.sum()*self.dt
         # self.Q_integrated_echo = _Q.sum()*self.dt
@@ -162,7 +236,7 @@ class Sweep_experiment():
         self.time = np.array(Is.index)
         self.columns = np.array(Is.columns)
         self.sweep_parameter = kwargs.get('sweep_parameter',None)
-        self.save_loc = None
+        self.save_loc = kwargs.get('save_loc',None)
 
     def trim(self,t1,t2):
         '''
@@ -173,17 +247,12 @@ class Sweep_experiment():
         self.Qs = self.Qs.loc[t1:t2, :]
         self.time = np.array(self.Is.index)
 
+    def plot_2D(self,**kwargs):
 
-    def plot_2D(self,save_name=None,**kwargs):
 
-        shape = (3, 1)
-        fig = plt.figure(figsize=kwargs.get('figsize',(4,12)))
-        ax1 = plt.subplot2grid(shape=shape, loc=(0, 0))
-        ax2 = plt.subplot2grid(shape=shape, loc=(1, 0))
-        ax3 = plt.subplot2grid(shape=shape, loc=(2, 0))
-
+        fig, [ax1,ax2,ax3] = generate_axes(shape=(3,1))
         extent = [float(self.columns[0]),float(self.columns[-1]),self.time[0],self.time[-1]]
-        IQmags = np.sqrt(self.Is**2 + self.Qs**2)
+        IQmags = (self.Is**2 + self.Qs**2).apply(np.sqrt)
 
         for i in zip([ax1,ax2,ax3],[self.Is,self.Qs,IQmags],['I','Q','|IQ|']):
             im = i[0].imshow(i[1],aspect='auto',origin='lower',extent=extent)
@@ -195,55 +264,114 @@ class Sweep_experiment():
         if return_fig:
             return(fig,(ax1,ax2,ax3))
 
+        plt.tight_layout()
+        save_name = kwargs.get('save_name',None)
         if save_name:
             plt.savefig(self.save_loc + save_name)
         plt.show()
 
+    def remove_baseline(self,t1,t2,t3,t4,order=1,**kwargs):
+        ''''
+        t1 - t4: define two regions of baseline on either side of the echo used to fit the baseline
+        order: order of polynomial used in fitting of baseline, defaults to 1 = linear fit
+        '''
 
-    def remove_baseline(self,t1,t2,t3,t4):
-
-        Is_corr = pd.DataFrame(index=self.Is.index,columns=self.Is.columns)
-        Qs_corr = pd.DataFrame(index=self.Qs.index, columns=self.Qs.columns)
+        Is_corr = pd.DataFrame(index=self.Is.index,columns=self.Is.columns, dtype=np.float64)
+        Qs_corr = pd.DataFrame(index=self.Qs.index, columns=self.Qs.columns, dtype=np.float64)
         for col in np.array(self.Is.columns):
-            Is_corr.at[:,col] = remove_linear_baseline(self.time,np.array(Is.loc[:,col]),t1,t2,t3,t4)
-            Qs_corr.at[:, col] = remove_linear_baseline(self.time, np.array(Qs.loc[:, col]),t1,t2,t3,t4)
+            Is_corr.at[:,col] = remove_polynomial_baseline(self.time,np.array(self.Is.loc[:,col]),t1,t2,t3,t4,order)
+            Qs_corr.at[:, col] = remove_polynomial_baseline(self.time, np.array(self.Qs.loc[:, col]),t1,t2,t3,t4,order)
 
+        self.Is_raw = self.Is
+        self.Qs_raw = self.Qs
         self.Is = Is_corr
         self.Qs = Qs_corr
+
+        if kwargs.get('plot_comparison',False):
+            self.plot_traces(plot_raw_data=True,IQ_style='magnitude',**kwargs)
 
     def integrate_echos(self,noise_range,plot=True,**kwargs):
         ''''
         noise_range = (t1,t2,t3,t4)
         '''
 
-        self.integrated_echos = pd.DataFrame(index = self.columns, columns=('I','Q','IQ'))
-        self.discriminators = pd.DataFrame(index=self.columns, columns=('I','Q','IQ'))
+        self.integrated_echos = pd.DataFrame(index = self.columns, columns=('I','Q','IQ'), dtype=np.float64)
+        self.integrated_echo_uncertainties = pd.DataFrame(index=self.columns, columns=('I','Q','IQ'), dtype=np.float64)
+
         for i in self.columns:
-            _I = np.array(self.Is.loc[:,i])
-            _Q = np.array(self.Qs.loc[:,i])
-            S = Echo_trace(self.time,_I,_Q)
+            S = Echo_trace(self.Is.loc[:, i], self.Qs.loc[:, i])
             S.integrate_echo(noise_range=noise_range)
+
+            # S.plot()
+
             for col in ['I','Q','IQ']:
                 self.integrated_echos.loc[i,col] = S.integrated_echo[col]
-                self.discriminators.loc[i, col] = S.discriminators[col]
-
+                self.integrated_echo_uncertainties.loc[i, col] = S.integrated_echo_uncertainty[col]
 
         if plot:
-
             x = [float(i) for i in self.integrated_echos.index]
-            shape = (3, 1)
-            fig = plt.figure(figsize=(4, 9))
-            ax1 = plt.subplot2grid(shape=shape, loc=(0, 0))
-            ax2 = plt.subplot2grid(shape=shape, loc=(1, 0))
-            ax3 = plt.subplot2grid(shape=shape, loc=(2, 0))
+            fig, [ax1,ax2,ax3] = generate_axes(shape=(3,1))
 
             for i in zip([ax1, ax2, ax3], ['I', 'Q', 'IQ']):
-                i[0].scatter(x,self.integrated_echos.loc[:,i[1]])
+                i[0].scatter(x,self.integrated_echos.loc[:,i[1]],s=3,color='b')
+                # i[0].errorbar(x,self.integrated_echos.loc[:,i[1]],self.integrated_echo_uncertainties.loc[:,i[1]]/2,linestyle="None",fmt='o',markersize=3)
+                _yplus = sp.signal.savgol_filter(np.array(self.integrated_echos.loc[:,i[1]]+self.integrated_echo_uncertainties.loc[:,i[1]]/2),3,1)
+                _yminus = sp.signal.savgol_filter(np.array(self.integrated_echos.loc[:,i[1]]-self.integrated_echo_uncertainties.loc[:,i[1]]/2),3,1)
+                i[0].fill_between(x,_yplus,_yminus,color='b',alpha=0.2)
+
                 i[0].set_ylabel(i[1])
                 i[0].set_xlabel(self.sweep_parameter)
 
             plt.tight_layout()
+            save_name = kwargs.get('save_name',None)
+            if save_name:
+                plt.savefig(self.save_loc + save_name)
+            else:
+                plt.show()
+
+    def plot_traces(self,**kwargs):
+
+        number = kwargs.get('number',3) #number of columns to plot
+        fig, axes = generate_axes(shape=(3,number))
+
+        n = len(self.columns)//(number - 1)
+        column_indices = kwargs.get('column_indices',[0] + [n*i for i in range(1,number-1)] + [-1])
+        if number != len(column_indices):
+            warnings.UserWarning('The number of columns requested does not match the number of column indices given')
+            return
+
+        for i in range(number):
+            S = Echo_trace(self.Is.iloc[:,column_indices[i]],self.Qs.iloc[:,column_indices[i]],**kwargs)
+            _axes = (axes[i],axes[i+number],axes[i+2*number])
+            _axes = S.plot(axes=_axes,**kwargs)
+            for j in _axes:
+                j.set_title(self.sweep_parameter + ' = {}'.format(self.columns[column_indices[i]]))
+
+        if kwargs.get('plot_raw_data',False):
+            for i in range(number):
+                S = Echo_trace(self.Is_raw.iloc[:, column_indices[i]], self.Qs_raw.iloc[:, column_indices[i]], **kwargs)
+                _axes = (axes[i], axes[i + number], axes[i + 2 * number])
+                _axes = S.plot(axes=_axes, **kwargs)
+
+        plt.tight_layout()
+        save_name = kwargs.get('save_name',None)
+        if save_name:
+            plt.savefig(self.save_loc + save_name)
+        else:
             plt.show()
+
+    def rename_columns(self,new_columns):
+
+        if len(self.columns) != len(new_columns):
+            raise ValueError('Number of new column names provided is {}, '
+                             'number of column names required is {}'.format(len(new_columns),len(self.columns)))
+
+        _map = {self.columns[i]:new_columns[i] for i in range(len(self.columns))}
+        self.Is = self.Is.rename(columns=_map)
+        self.Qs = self.Qs.rename(columns=_map)
+        self.columns = new_columns
+
+
 
 
 
