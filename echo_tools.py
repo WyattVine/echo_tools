@@ -19,30 +19,6 @@ def generate_axes(shape,**kwargs):
             axes.append(plt.subplot2grid(shape=shape, loc=(j, i)))
     return(fig,axes)
 
-
-def remove_linear_baseline(x,y,x1,x2,x3,x4):
-    
-    '''
-    x = np array
-    x1,x2,x3,x4 = values within x corresponding to the baseline
-    y = np array
-    '''
-    
-    linear_func = lambda x,a,b: a + b*x
-    
-    data = pd.DataFrame.from_dict({'x':x,'y':y})
-    _cut1 = data[(data['x'] >= x1) & (data['x'] <= x2)]
-    _cut2 = data[(data['x'] >= x3) & (data['x'] <= x4)]
-    rdata = pd.concat((_cut1,_cut2))
-    
-    _x = np.array(rdata['x'])
-    _y = np.array(rdata['y'])
-    popt,pcov = sp.optimize.curve_fit(linear_func,_x,_y)
-    fit = np.array([linear_func(x,*popt)])
-    
-    return(np.subtract(y,fit)[0])
-
-
 def remove_polynomial_baseline(x, y, x1, x2, x3, x4, order=1):
     '''
     x = np array
@@ -216,8 +192,8 @@ class Echo_trace():
         
         self.integrated_echo = {}
         self.integrated_echo['IQ'] = (_IQ - self.discriminators['IQ']).sum()*self.dt
-        self.integrated_echo['I'] = (np.abs(_I)-self.discriminators['I']).sum()*self.dt
-        self.integrated_echo['Q'] = (np.abs(_Q)-self.discriminators['Q']).sum()*self.dt
+        self.integrated_echo['I'] = np.abs(_I).sum()*self.dt
+        self.integrated_echo['Q'] = np.abs(_Q).sum()*self.dt
 
         self.integrated_echo_uncertainty = {}
         for i in zip([_I,_Q,_IQ],['I','Q','IQ']):
@@ -228,6 +204,11 @@ class Echo_trace():
         # self.Q_integrated_echo = _Q.sum()*self.dt
 
 class Sweep_experiment():
+
+    '''
+    A class for experiments where IQ traces are collected as a function of some 1D sweep parameter (e.g. pulse power)
+    Provides simple way to trim the data, subtract the baseline on I and Q, integrate the echos, and plot the data
+    '''
 
     def __init__(self,Is,Qs,**kwargs):
 
@@ -240,7 +221,7 @@ class Sweep_experiment():
 
     def trim(self,t1,t2):
         '''
-        trims Is and Qs to only include times between t1 and t2 (e.g. to cut out ringdown)
+        trims self.Is and self.Qs to only include times between t1 and t2 (e.g. to cut out ringdown)
         '''
 
         self.Is = self.Is.loc[t1:t2,:]
@@ -248,7 +229,10 @@ class Sweep_experiment():
         self.time = np.array(self.Is.index)
 
     def plot_2D(self,**kwargs):
-
+        '''
+        Creates 2D colorplots of I, Q, and IQ
+        If given save_name will save pdf of image at self.save_loc
+        '''
 
         fig, [ax1,ax2,ax3] = generate_axes(shape=(3,1))
         extent = [float(self.columns[0]),float(self.columns[-1]),self.time[0],self.time[-1]]
@@ -272,9 +256,13 @@ class Sweep_experiment():
 
     def remove_baseline(self,t1,t2,t3,t4,order=1,**kwargs):
         ''''
-        t1 - t4: define two regions of baseline on either side of the echo used to fit the baseline
+        Remove baseline from data. Updates self.Is and self.Qs
+        t1 - t4: define two regions of baseline on either side of the echo
         order: order of polynomial used in fitting of baseline, defaults to 1 = linear fit
         '''
+
+        self.Is_raw = self.Is
+        self.Qs_raw = self.Qs
 
         Is_corr = pd.DataFrame(index=self.Is.index,columns=self.Is.columns, dtype=np.float64)
         Qs_corr = pd.DataFrame(index=self.Qs.index, columns=self.Qs.columns, dtype=np.float64)
@@ -282,8 +270,6 @@ class Sweep_experiment():
             Is_corr.at[:,col] = remove_polynomial_baseline(self.time,np.array(self.Is.loc[:,col]),t1,t2,t3,t4,order)
             Qs_corr.at[:, col] = remove_polynomial_baseline(self.time, np.array(self.Qs.loc[:, col]),t1,t2,t3,t4,order)
 
-        self.Is_raw = self.Is
-        self.Qs_raw = self.Qs
         self.Is = Is_corr
         self.Qs = Qs_corr
 
@@ -292,7 +278,8 @@ class Sweep_experiment():
 
     def integrate_echos(self,noise_range,plot=True,**kwargs):
         ''''
-        noise_range = (t1,t2,t3,t4)
+        Integrate I, Q, and IQ signals by creating an Echo_trace for each column
+        noise_range = (t1,t2,t3,t4), specifies the region for creating discriminators in each Echo_trace (std deviation of noise)
         '''
 
         self.integrated_echos = pd.DataFrame(index = self.columns, columns=('I','Q','IQ'), dtype=np.float64)
@@ -315,10 +302,9 @@ class Sweep_experiment():
             for i in zip([ax1, ax2, ax3], ['I', 'Q', 'IQ']):
                 i[0].scatter(x,self.integrated_echos.loc[:,i[1]],s=3,color='b')
                 # i[0].errorbar(x,self.integrated_echos.loc[:,i[1]],self.integrated_echo_uncertainties.loc[:,i[1]]/2,linestyle="None",fmt='o',markersize=3)
-                _yplus = sp.signal.savgol_filter(np.array(self.integrated_echos.loc[:,i[1]]+self.integrated_echo_uncertainties.loc[:,i[1]]/2),3,1)
-                _yminus = sp.signal.savgol_filter(np.array(self.integrated_echos.loc[:,i[1]]-self.integrated_echo_uncertainties.loc[:,i[1]]/2),3,1)
+                _yplus = np.array(self.integrated_echos.loc[:,i[1]]+self.integrated_echo_uncertainties.loc[:,i[1]]/2)
+                _yminus = np.array(self.integrated_echos.loc[:,i[1]]-self.integrated_echo_uncertainties.loc[:,i[1]]/2)
                 i[0].fill_between(x,_yplus,_yminus,color='b',alpha=0.2)
-
                 i[0].set_ylabel(i[1])
                 i[0].set_xlabel(self.sweep_parameter)
 
@@ -330,27 +316,31 @@ class Sweep_experiment():
                 plt.show()
 
     def plot_traces(self,**kwargs):
+        '''
+         1D plots of I, Q and IQ
+         By default the columns are linearly sampled, but specific columns can be plotted by giving a list of column indicies as an argument
+        '''
 
-        number = kwargs.get('number',3) #number of columns to plot
-        fig, axes = generate_axes(shape=(3,number))
+        num_cols = kwargs.get('num_cols',3) #number of columns to plot
+        fig, axes = generate_axes(shape=(3,num_cols))
 
-        n = len(self.columns)//(number - 1)
-        column_indices = kwargs.get('column_indices',[0] + [n*i for i in range(1,number-1)] + [-1])
-        if number != len(column_indices):
+        n = len(self.columns)//(num_cols - 1)
+        column_indices = kwargs.get('column_indices',[0] + [n*i for i in range(1,num_cols-1)] + [-1])
+        if num_cols != len(column_indices):
             warnings.UserWarning('The number of columns requested does not match the number of column indices given')
             return
 
-        for i in range(number):
+        for i in range(num_cols):
             S = Echo_trace(self.Is.iloc[:,column_indices[i]],self.Qs.iloc[:,column_indices[i]],**kwargs)
-            _axes = (axes[i],axes[i+number],axes[i+2*number])
+            _axes = (axes[i],axes[i+num_cols],axes[i+2*num_cols])
             _axes = S.plot(axes=_axes,**kwargs)
             for j in _axes:
                 j.set_title(self.sweep_parameter + ' = {}'.format(self.columns[column_indices[i]]))
 
         if kwargs.get('plot_raw_data',False):
-            for i in range(number):
+            for i in range(num_cols):
                 S = Echo_trace(self.Is_raw.iloc[:, column_indices[i]], self.Qs_raw.iloc[:, column_indices[i]], **kwargs)
-                _axes = (axes[i], axes[i + number], axes[i + 2 * number])
+                _axes = (axes[i], axes[i + num_cols], axes[i + 2 * num_cols])
                 _axes = S.plot(axes=_axes, **kwargs)
 
         plt.tight_layout()
@@ -361,6 +351,9 @@ class Sweep_experiment():
             plt.show()
 
     def rename_columns(self,new_columns):
+        '''
+        Rename the column indicies of self.Is and self.Qs
+        '''
 
         if len(self.columns) != len(new_columns):
             raise ValueError('Number of new column names provided is {}, '
