@@ -21,6 +21,7 @@ def generate_axes(shape,**kwargs):
 
 def remove_polynomial_baseline(x, y, x1, x2, x3, x4, order=1):
     '''
+    A function for fitting the baseline of an echo.
     x = np array
     x1,x2,x3,x4 = values within x corresponding to the baseline
     y = np array
@@ -47,7 +48,9 @@ def remove_polynomial_baseline(x, y, x1, x2, x3, x4, order=1):
     return (np.subtract(y, fit)[0])
 
 class circle():
-    
+
+    '''A circle in the complex plane. Used in plotting functions'''
+
     def __init__(self,r,x0=0,y0=0):
         
         self.r = r
@@ -59,7 +62,26 @@ class circle():
         
         theta = np.linspace(0,2*np.pi,100)
         self.coords = (self.x0 + 1j*self.y0) + self.r*np.exp(1j*theta)
-        
+
+class Echo_experiment():
+
+    '''Base class for experiments.'''
+
+    def __init__(self,data_loc,save_loc=None,**kwargs):
+        self.data_loc = data_loc
+        self.save_loc = save_loc
+
+    def read_data(self,**kwargs):
+
+        if self.data_file_type == 'pkl':
+            self.Is = pd.read_pickle(self.data_loc + self.data_name_convention + '.pkl')
+            self.Qs = pd.read_pickle(self.data_loc + self.data_name_convention.replace('I','Q') + '.pkl')
+        elif self.data_file_type == 'csv':
+            self.Is = pd.read_csv(self.data_loc + self.data_name_convention + '.csv',index_col=0)
+            self.Qs = pd.read_csv(self.data_loc + self.data_name_convention.replace('I','Q') + '.csv',index_col=0)
+
+        self.time = np.array(self.Is.index)
+        self.columns = np.array(self.Is.columns)
 
 class Echo_trace():
     
@@ -90,7 +112,7 @@ class Echo_trace():
         self.data['S'] = self.data['I'] + 1j*self.data['Q']
         self.data['IQ'] = np.abs(self.data['S'])
         self.dt = self.data['time'].iloc[2] - self.data['time'].iloc[1]
-        self._discriminator_flag = False #True when discriminators have been created
+        self._flag_discriminators = False #True when discriminators have been created
         self.save_loc = kwargs.get('save_loc',None)
         
     def rotate(self,theta):
@@ -140,7 +162,7 @@ class Echo_trace():
             ax3.set_xlabel('Time (us)')
             ax3.set_ylabel('|IQ| (V)')
 
-        if self._discriminator_flag:
+        if self._flag_discriminators:
             ax1.fill_between(min_max_times,[self.discriminators['I'],self.discriminators['I']],[-1*self.discriminators['I'],-1*self.discriminators['I']],color='r',alpha=0.2)
             ax2.fill_between(min_max_times,[self.discriminators['Q'],self.discriminators['Q']],[-1*self.discriminators['Q'],-1*self.discriminators['Q']],color='r',alpha=0.2)
             if IQ_style == 'complex_circle':
@@ -178,7 +200,7 @@ class Echo_trace():
         for i in ['I','Q','IQ']:
             self.discriminators[i] = std_multiplier*np.std(_reduced[i])
 
-        self._discriminator_flag = True
+        self._flag_discriminators = True
         
     def integrate_echo(self,**kwargs):
 
@@ -203,21 +225,20 @@ class Echo_trace():
         # self.I_integrated_echo = _I.sum()*self.dt
         # self.Q_integrated_echo = _Q.sum()*self.dt
 
-class Sweep_experiment():
+class Sweep_experiment(Echo_experiment):
 
     '''
     A class for experiments where IQ traces are collected as a function of some 1D sweep parameter (e.g. pulse power)
     Provides simple way to trim the data, subtract the baseline on I and Q, integrate the echos, and plot the data
     '''
 
-    def __init__(self,Is,Qs,**kwargs):
+    def __init__(self,data_loc,save_loc=None,**kwargs):
 
-        self.Is = Is #pd DataFrame
-        self.Qs = Qs #pd DataFrame
-        self.time = np.array(Is.index)
-        self.columns = np.array(Is.columns)
-        self.sweep_parameter = kwargs.get('sweep_parameter',None)
-        self.save_loc = kwargs.get('save_loc',None)
+        super().__init__(data_loc,save_loc)
+        self.data_name_convention = kwargs.get('data_name_convention', 'Is')
+        self.data_file_type = kwargs.get('data_file_type', 'pkl')
+        self.read_data()
+        self.sweep_parameter = kwargs.get('sweep_parameter', None)
 
     def trim(self,t1,t2):
         '''
