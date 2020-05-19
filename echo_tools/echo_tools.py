@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
 import scipy as sp
-from scipy import signal
 import matplotlib.pyplot as plt
 import warnings
 
@@ -99,7 +98,6 @@ class Echo_trace():
 
 
         self.data = pd.DataFrame(columns=('time', 'I', 'Q', 'S', 'IQ'))
-
         if (type(I) == type(Q)) and (type(I) == np.ndarray):
             self.data['time'] = time
             self.data['I'] = I
@@ -132,6 +130,7 @@ class Echo_trace():
         IQ_lims = kwargs.get('IQ_lims',[-0.05,1.0])
         IQ_style = kwargs.get('IQ_style','complex_circle') #'complex_circle' or 'magnitude'
         axes = kwargs.get('axes',None) #user can supply ax1,ax2,ax3 which will be returned to them
+        label = kwargs.get('label',None)
 
         if not axes:
             fig, [ax1,ax2,ax3] = generate_axes(shape=(3,1))
@@ -139,7 +138,7 @@ class Echo_trace():
             ax1,ax2,ax3 = axes
 
         for i in zip([ax1,ax2],['I','Q'],[I_lims,Q_lims],['I (V)','Q (V)']):
-            i[0].plot(self.data['time'],self.data[i[1]])
+            i[0].plot(self.data['time'],self.data[i[1]],label=label)
             i[0].set_xlabel('Time (us)')
             i[0].plot(min_max_times,[0,0],c='black',alpha=0.3)
             i[0].set_xlim(min_max_times)
@@ -147,7 +146,7 @@ class Echo_trace():
             i[0].set_ylabel(i[3])
 
         if IQ_style == 'complex_circle':
-            ax3.plot(self.data['I'],self.data['Q'])
+            ax3.plot(self.data['I'],self.data['Q'],label=label)
             ax3.set_xlim(I_lims)
             ax3.set_ylim(Q_lims)
             ax3.plot(I_lims,[0,0],c='black',alpha=0.3)
@@ -155,7 +154,7 @@ class Echo_trace():
             ax3.set_xlabel('I (V)')
             ax3.set_ylabel('Q (V)')
         elif IQ_style == 'magnitude':
-            ax3.plot(self.data['time'],self.data['IQ'])
+            ax3.plot(self.data['time'],self.data['IQ'],label=label)
             ax3.plot(min_max_times, [0,0], c='black', alpha=0.3)
             ax3.set_xlim(min_max_times)
             ax3.set_ylim(IQ_lims)
@@ -264,6 +263,7 @@ class Sweep_experiment(Echo_experiment):
             fig.colorbar(im,ax=i[0],shrink=0.8)
             i[0].set_ylabel('Time (us)')
             i[0].set_xlabel(self.sweep_parameter)
+            i[0].set_title(i[2])
 
         return_fig = kwargs.get('return_fig',False)
         if return_fig:
@@ -273,7 +273,8 @@ class Sweep_experiment(Echo_experiment):
         save_name = kwargs.get('save_name',None)
         if save_name:
             plt.savefig(self.save_loc + save_name)
-        plt.show()
+        else:
+            plt.show()
 
     def remove_baseline(self,t1,t2,t3,t4,order=1,**kwargs):
         ''''
@@ -326,7 +327,7 @@ class Sweep_experiment(Echo_experiment):
                 _yplus = np.array(self.integrated_echos.loc[:,i[1]]+self.integrated_echo_uncertainties.loc[:,i[1]]/2)
                 _yminus = np.array(self.integrated_echos.loc[:,i[1]]-self.integrated_echo_uncertainties.loc[:,i[1]]/2)
                 i[0].fill_between(x,_yplus,_yminus,color='b',alpha=0.2)
-                i[0].set_ylabel(i[1])
+                i[0].set_ylabel(i[1] + r'  (V$\cdot \mu$s)')
                 i[0].set_xlabel(self.sweep_parameter)
 
             plt.tight_layout()
