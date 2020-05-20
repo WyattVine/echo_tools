@@ -51,14 +51,14 @@ class circle():
     '''A circle in the complex plane. Used in plotting functions'''
 
     def __init__(self,r,x0=0,y0=0):
-        
+
         self.r = r
         self.x0 = x0
         self.y0 = y0
         self.create_coords()
-        
+
     def create_coords(self):
-        
+
         theta = np.linspace(0,2*np.pi,100)
         self.coords = (self.x0 + 1j*self.y0) + self.r*np.exp(1j*theta)
 
@@ -83,13 +83,13 @@ class Echo_experiment():
         self.columns = np.array(self.Is.columns)
 
 class Echo_trace():
-    
+
     '''
     Basic representation of a single echo time trace.
     '''
-    
+
     def __init__(self,I,Q,time=None,**kwargs):
-        
+
         '''
         time = np.ndarray or pd.core.series.Series
         I = np.ndarray or pd.core.series.Series
@@ -112,21 +112,21 @@ class Echo_trace():
         self.dt = self.data['time'].iloc[2] - self.data['time'].iloc[1]
         self._flag_discriminators = False #True when discriminators have been created
         self.save_loc = kwargs.get('save_loc',None)
-        
+
     def rotate(self,theta):
         '''
-        Rotates the echo trace by theta (radians) in complex plane 
+        Rotates the echo trace by theta (radians) in complex plane
         '''
-        
+
         self.data['S'] = self.data['S']*np.exp(1j*theta)
         self.data['I'] = np.array(self.data['S']).real
         self.data['Q'] = np.array(self.data['S']).imag
-        
+
     def plot(self,**kwargs):
 
         min_max_times = [self.data['time'].min(),self.data['time'].max()]
         I_lims = kwargs.get('I_lims',[-0.5,0.5])
-        Q_lims = kwargs.get('I_lims', [-0.5, 0.5])
+        Q_lims = kwargs.get('Q_lims', [-0.5, 0.5])
         IQ_lims = kwargs.get('IQ_lims',[-0.05,1.0])
         IQ_style = kwargs.get('IQ_style','complex_circle') #'complex_circle' or 'magnitude'
         axes = kwargs.get('axes',None) #user can supply ax1,ax2,ax3 which will be returned to them
@@ -179,7 +179,7 @@ class Echo_trace():
                 plt.show()
         else:
             return(ax1,ax2,ax3)
-        
+
     def create_discriminators(self,t1,t2,t3=None,t4=None,**kwargs):
         '''
         Using t1 - t4 it creates single values corresponding to the noise in I, Q, and IQ that can be used for
@@ -194,13 +194,13 @@ class Echo_trace():
         _reduced = _generate_reduced(t1,t2)
         if t3:
             _reduced = pd.concat((_reduced,_generate_reduced(t3,t4)))
-            
+
         self.discriminators = {}
         for i in ['I','Q','IQ']:
             self.discriminators[i] = std_multiplier*np.std(_reduced[i])
 
         self._flag_discriminators = True
-        
+
     def integrate_echo(self,**kwargs):
 
         noise_range = kwargs.get('noise_range',None) #tuple of t1,t2,t3,t4
@@ -210,7 +210,7 @@ class Echo_trace():
         _IQ = self.data[self.data['IQ'] > self.discriminators['IQ']]['IQ']
         _I = self.data[(self.data['I'] > self.discriminators['I']) | (self.data['I'] < -1*self.discriminators['I'])]['I']
         _Q = self.data[(self.data['Q'] > self.discriminators['Q']) | (self.data['Q'] < -1*self.discriminators['Q'])]['Q']
-        
+
         self.integrated_echo = {}
         self.integrated_echo['IQ'] = (_IQ - self.discriminators['IQ']).sum()*self.dt
         self.integrated_echo['I'] = np.abs(_I).sum()*self.dt
@@ -385,12 +385,3 @@ class Sweep_experiment(Echo_experiment):
         self.Is = self.Is.rename(columns=_map)
         self.Qs = self.Qs.rename(columns=_map)
         self.columns = new_columns
-
-
-
-
-
-
-
-
-

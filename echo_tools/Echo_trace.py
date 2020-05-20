@@ -4,13 +4,13 @@ import matplotlib.pyplot as plt
 from .utilities import *
 
 class Echo_trace():
-    
+
     '''
     Basic representation of a single echo time trace.
     '''
-    
+
     def __init__(self,I,Q,time=None,**kwargs):
-        
+
         '''
         time = np.ndarray or pd.core.series.Series
         I = np.ndarray or pd.core.series.Series
@@ -33,16 +33,30 @@ class Echo_trace():
         self.dt = self.data['time'].iloc[2] - self.data['time'].iloc[1]
         self._flag_discriminators = False #True when discriminators have been created
         self.save_loc = kwargs.get('save_loc',None)
-        
+
     def rotate(self,theta):
         '''
-        Rotates the echo trace by theta (radians) in complex plane 
+        Rotates the echo trace by theta (radians) in complex plane
         '''
-        
+
         self.data['S'] = self.data['S']*np.exp(1j*theta)
         self.data['I'] = np.array(self.data['S']).real
         self.data['Q'] = np.array(self.data['S']).imag
-        
+
+    def trim(self,t1,t2):
+        '''
+        trims self.Is and self.Qs to only include times between t1 and t2 (e.g. to cut out ringdown)
+        '''
+
+        self.data = self.data[(self.data['time'] > t1) & (self.data['time'] < t2)]
+
+    def remove_baseline(self,t1,t2,t3,t4,order=1):
+
+        for col in ['I','Q']:
+            self.data.loc[:,col] = remove_polynomial_baseline(self.data['time'],np.array(self.data[col]),t1,t2,t3,t4,order)
+        self.data['S'] = self.data['I'] + 1j*self.data['Q']
+        self.data['IQ'] = np.abs(self.data['S'])
+
     def plot(self,**kwargs):
 
         min_max_times = [self.data['time'].min(),self.data['time'].max()]
@@ -96,11 +110,12 @@ class Echo_trace():
             save_name = kwargs.get('save_name',None)
             if save_name:
                 plt.savefig(self.save_loc + save_name)
+                plt.close()
             else:
                 plt.show()
         else:
             return(ax1,ax2,ax3)
-        
+
     def create_discriminators(self,t1,t2,t3=None,t4=None,**kwargs):
         '''
         Using t1 - t4 it creates single values corresponding to the noise in I, Q, and IQ that can be used for
@@ -115,13 +130,13 @@ class Echo_trace():
         _reduced = _generate_reduced(t1,t2)
         if t3:
             _reduced = pd.concat((_reduced,_generate_reduced(t3,t4)))
-            
+
         self.discriminators = {}
         for i in ['I','Q','IQ']:
             self.discriminators[i] = std_multiplier*np.std(_reduced[i])
 
         self._flag_discriminators = True
-        
+
     def integrate_echo(self,**kwargs):
 
         noise_range = kwargs.get('noise_range',None) #tuple of t1,t2,t3,t4
@@ -131,7 +146,7 @@ class Echo_trace():
         _IQ = self.data[self.data['IQ'] > self.discriminators['IQ']]['IQ']
         _I = self.data[(self.data['I'] > self.discriminators['I']) | (self.data['I'] < -1*self.discriminators['I'])]['I']
         _Q = self.data[(self.data['Q'] > self.discriminators['Q']) | (self.data['Q'] < -1*self.discriminators['Q'])]['Q']
-        
+
         self.integrated_echo = {}
         self.integrated_echo['IQ'] = (_IQ - self.discriminators['IQ']).sum()*self.dt
         self.integrated_echo['I'] = np.abs(_I).sum()*self.dt
@@ -140,3 +155,37 @@ class Echo_trace():
         self.integrated_echo_uncertainty = {}
         for i in zip([_I,_Q,_IQ],['I','Q','IQ']):
             self.integrated_echo_uncertainty[i[1]] = i[0].count()*self.discriminators[i[1]]*self.dt
+
+def compare_traces(trace1,trace2,**kwargs):
+
+    '''overlays Echo_trace.plot of the two Echo_trace objects for a direct comparison'''
+
+    axes = kwargs.get('axes',None)
+    _flag_axis_supplied = True
+    if not axes:
+        fig,axes = generate_axes(shape=(3,1))
+        _flag_axis_supplied = False
+
+    I_lims = kwargs.get('I_lims',[-1,1])
+    Q_lims = kwargs.get('Q_lims',[-1,1])
+    IQ_style = kwargs.get('IQ_style','magnitude')
+    labels = kwargs.get('labels',(None,None))
+    legend = kwargs.get('legend',False)
+
+    trace1.plot(axes=axes,I_lims=I_lims,Q_lims=Q_lims,IQ_style=IQ_style,label=labels[0])
+    trace2.plot(axes=axes,I_lims=I_lims,Q_lims=Q_lims,IQ_style=IQ_style,label=labels[1])
+
+    if legend:
+        for i in axes:
+            i.legend()
+
+    if _flag_axis_supplied:
+        return(axes)
+
+    plt.tight_layout()
+    save_name = kwargs.get('save_name',None)
+    if save_name:
+        plt.savefig(save_name)
+        plt.close()
+    else:
+        plt.show()

@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import scipy as sp
+from scipy import optimize
 import matplotlib.pyplot as plt
 import warnings
 from .utilities import *
@@ -24,7 +25,6 @@ class Sweep_experiment(Echo_experiment):
 
         if data_loc: #allows user to manually specify Is and Qs instead of using Echo_experiment.read()
             self.read_data()
-
 
     def trim(self,t1,t2):
         '''
@@ -63,6 +63,7 @@ class Sweep_experiment(Echo_experiment):
             save_name = kwargs.get('save_name',None)
             if save_name:
                 plt.savefig(self.save_loc + save_name)
+                plt.close()
             else:
                 plt.show()
         return(fig,[ax1,ax2,ax3])
@@ -121,6 +122,7 @@ class Sweep_experiment(Echo_experiment):
             save_name = kwargs.get('save_name',None)
             if save_name:
                 plt.savefig(self.save_loc + save_name)
+                plt.close()
             else:
                 plt.show()
 
@@ -156,6 +158,7 @@ class Sweep_experiment(Echo_experiment):
         save_name = kwargs.get('save_name',None)
         if save_name:
             plt.savefig(self.save_loc + save_name)
+            plt.close()
         else:
             plt.show()
 
@@ -172,12 +175,3 @@ class Sweep_experiment(Echo_experiment):
         self.Is = self.Is.rename(columns=_map)
         self.Qs = self.Qs.rename(columns=_map)
         self.columns = new_columns
-
-
-
-
-
-
-
-
-

@@ -3,7 +3,7 @@ import numpy as np
 
 class Echo_experiment():
 
-    '''Base class for experiments.'''
+    '''Base class for experiments'''
 
     def __init__(self,data_loc,save_loc=None,**kwargs):
         self.data_loc = data_loc
