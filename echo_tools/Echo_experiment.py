@@ -3,7 +3,9 @@ import numpy as np
 
 class Echo_experiment():
 
-    '''Base class for experiments'''
+    '''
+    Base class for experiments
+    '''
 
     def __init__(self,**kwargs):
         self.data_loc = kwargs.get('data_loc',None)
@@ -24,10 +26,11 @@ class Echo_experiment():
             self.Is = pd.read_csv(self.data_loc + self.data_name_convention + '.csv',index_col=0)
             self.Qs = pd.read_csv(self.data_loc + self.data_name_convention.replace('I','Q') + '.csv',index_col=0)
 
-        self.Is_raw = self.Is
-        self.Qs_raw = self.Qs
         self.time = np.array(self.Is.index)
         self.columns = np.array(self.Is.columns)
+
+    def generate_IQs(self):
+        return((self.Is ** 2 + self.Qs ** 2).apply(np.sqrt))
 
     def trim(self,t1,t2):
         '''
