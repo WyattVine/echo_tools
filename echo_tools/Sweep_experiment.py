@@ -3,10 +3,12 @@ import numpy as np
 import scipy as sp
 from scipy import optimize
 import matplotlib.pyplot as plt
+from matplotlib.offsetbox import AnchoredText
 import warnings
 from .utilities import *
 from . Echo_experiment import *
 from .Echo_trace import *
+from .fitting_tools import *
 update_matplot_style()
 
 et_colors = color_palette()
@@ -19,24 +21,10 @@ class Sweep_experiment(Echo_experiment):
     Provides simple way to trim the data, subtract the baseline on I and Q, integrate the echos, and plot the data
     '''
 
-    def __init__(self,data_loc=None,save_loc=None,**kwargs):
+    def __init__(self,**kwargs):
 
-        super().__init__(data_loc,save_loc)
-        self.data_name_convention = kwargs.get('data_name_convention', 'Is')
-        self.data_file_type = kwargs.get('data_file_type', 'pkl')
+        super().__init__(**kwargs)
         self.sweep_parameter = kwargs.get('sweep_parameter', None)
-
-        if data_loc: #allows user to manually specify Is and Qs instead of using Echo_experiment.read()
-            self.read_data()
-
-    def trim(self,t1,t2):
-        '''
-        trims self.Is and self.Qs to only include times between t1 and t2 (e.g. to cut out ringdown)
-        '''
-
-        self.Is = self.Is.loc[t1:t2,:]
-        self.Qs = self.Qs.loc[t1:t2, :]
-        self.time = np.array(self.Is.index)
 
     def plot_2D(self,**kwargs):
         '''
@@ -45,17 +33,17 @@ class Sweep_experiment(Echo_experiment):
         '''
 
         axes = kwargs.get('axes', None)  # user can supply fig,[ax1,ax2,ax3] which will be returned to them
-
-        extent = [float(self.columns[0]),float(self.columns[-1]),self.time[0],self.time[-1]]
-        IQmags = (self.Is**2 + self.Qs**2).apply(np.sqrt)
+        save_name = kwargs.get('save_name', None)
 
         if not axes:
             fig, [ax1,ax2,ax3] = generate_axes(shape=(3,1))
         else:
             fig, [ax1,ax2,ax3] = axes
 
-        for i in zip([ax1,ax2,ax3],[self.Is,self.Qs,IQmags],['I','Q','|IQ|']):
-            im = i[0].imshow(i[1],aspect='auto',origin='lower',extent=extent)
+        IQ = (self.Is ** 2 + self.Qs ** 2).apply(np.sqrt)
+        extent = [float(self.columns[0]), float(self.columns[-1]), self.time[0], self.time[-1]]
+        for i in zip([ax1,ax2,ax3],[self.Is,self.Qs,IQ],['I','Q','|IQ|']):
+            im = i[0].imshow(i[1],extent=extent)
             fig.colorbar(im,ax=i[0],shrink=0.8)
             i[0].set_ylabel('Time (us)')
             i[0].set_xlabel(self.sweep_parameter)
@@ -63,7 +51,7 @@ class Sweep_experiment(Echo_experiment):
 
         if not axes:
             plt.tight_layout()
-            save_name = kwargs.get('save_name',None)
+
             if save_name:
                 plt.savefig(self.save_loc + save_name)
                 plt.close()
@@ -71,63 +59,78 @@ class Sweep_experiment(Echo_experiment):
                 plt.show()
         return(fig,[ax1,ax2,ax3])
 
-    def remove_baseline(self,t1,t2,t3,t4,order=1,**kwargs):
+    def remove_baseline(self,order=1,plot_comparison=False,**kwargs):
         ''''
         Remove baseline from data. Updates self.Is and self.Qs
-        t1 - t4: define two regions of baseline on either side of the echo
+
         order: order of polynomial used in fitting of baseline, defaults to 1 = linear fit
+        plot_comparison: overlays raw data with cleaned data as means to evaluate function's success
         '''
 
         Is_corr = pd.DataFrame(index=self.Is.index,columns=self.Is.columns, dtype=np.float64)
         Qs_corr = pd.DataFrame(index=self.Qs.index, columns=self.Qs.columns, dtype=np.float64)
         for col in np.array(self.Is.columns):
-            Is_corr.at[:,col] = remove_polynomial_baseline(self.time,np.array(self.Is.loc[:,col]),t1,t2,t3,t4,order)
-            Qs_corr.at[:, col] = remove_polynomial_baseline(self.time, np.array(self.Qs.loc[:, col]),t1,t2,t3,t4,order)
+            Is_corr.at[:,col] = remove_polynomial_baseline(self.time,np.array(self.Is.loc[:,col]),*self.noise_range,order)
+            Qs_corr.at[:, col] = remove_polynomial_baseline(self.time, np.array(self.Qs.loc[:, col]),*self.noise_range,order)
 
         self.Is = Is_corr
         self.Qs = Qs_corr
 
-        if kwargs.get('plot_comparison',False):
+        if plot_comparison:
             self.plot_traces(plot_raw_data=True,IQ_style='magnitude',**kwargs)
 
-    def integrate_echos(self,noise_range,plot=True,**kwargs):
+    def integrate_echos(self,plot=True,save_name=None,**kwargs):
         ''''
         Integrate I, Q, and IQ signals by creating an Echo_trace for each column
-        noise_range = (t1,t2,t3,t4), specifies the region for creating discriminators in each Echo_trace (std deviation of noise)
         '''
+
 
         self.integrated_echos = pd.DataFrame(index = self.columns, columns=('I','Q','IQ'), dtype=np.float64)
         self.integrated_echo_uncertainties = pd.DataFrame(index=self.columns, columns=('I','Q','IQ'), dtype=np.float64)
 
         for i in self.columns:
-            S = Echo_trace(self.Is.loc[:, i], self.Qs.loc[:, i])
-            S.integrate_echo(noise_range=noise_range)
+            S = Echo_trace(self.Is.loc[:, i], self.Qs.loc[:, i],noise_range=self.noise_range)
+            S.integrate_echo()
 
-            # S.plot()
-
-            for col in ['I','Q','IQ']:
+            for col in ['I','Q','IQ','|I|','|Q|']:
                 self.integrated_echos.loc[i,col] = S.integrated_echo[col]
                 self.integrated_echo_uncertainties.loc[i, col] = S.integrated_echo_uncertainty[col]
 
         if plot:
-            x = [float(i) for i in self.integrated_echos.index]
-            fig, [ax1,ax2,ax3] = generate_axes(shape=(3,1))
-
-            for i in zip([ax1, ax2, ax3], ['I', 'Q', 'IQ']):
-                i[0].plot(x,self.integrated_echos.loc[:,i[1]],'o',markersize=3)
-                _yplus = np.array(self.integrated_echos.loc[:,i[1]]+self.integrated_echo_uncertainties.loc[:,i[1]]/2)
-                _yminus = np.array(self.integrated_echos.loc[:,i[1]]-self.integrated_echo_uncertainties.loc[:,i[1]]/2)
-                i[0].fill_between(x,_yplus,_yminus,alpha=0.2)
-                i[0].set_ylabel(i[1] + r'  (V$\cdot \mu$s)')
-                i[0].set_xlabel(self.sweep_parameter)
-
-            plt.tight_layout()
-            save_name = kwargs.get('save_name',None)
             if save_name:
-                plt.savefig(self.save_loc + save_name)
-                plt.close()
+                self.plot_integrated_echos(**kwargs)
             else:
-                plt.show()
+                self.plot_integrated_echos(**kwargs)
+
+    def plot_integrated_echos(self,save_name=None,**kwargs):
+        '''
+        Plots integrated echos and their uncertainties
+        '''
+
+        axes = kwargs.get('axes',None)
+        _flag_axes_supplied = True
+        if not axes:
+            fig, axes = generate_axes(shape=(3, 1))
+            _flag_axes_supplied = False
+
+        x = [float(i) for i in self.integrated_echos.index]
+        for i in zip(axes, ['I', 'Q', 'IQ']):
+            i[0].plot(x, self.integrated_echos.loc[:, i[1]], 'o', markersize=3)
+            _yplus = np.array(self.integrated_echos.loc[:, i[1]] + self.integrated_echo_uncertainties.loc[:, i[1]] / 2)
+            _yminus = np.array(self.integrated_echos.loc[:, i[1]] - self.integrated_echo_uncertainties.loc[:, i[1]] / 2)
+            i[0].fill_between(x, _yplus, _yminus, alpha=0.2)
+            i[0].set_ylabel(i[1] + r'  (V$\cdot \mu$s)')
+            i[0].set_xlabel(self.sweep_parameter)
+
+        if _flag_axes_supplied:
+            return(axes)
+
+        plt.tight_layout()
+        if save_name:
+            plt.savefig(self.save_loc + save_name)
+            plt.close()
+        else:
+            plt.show()
 
     def plot_traces(self,**kwargs):
         '''
@@ -136,10 +139,12 @@ class Sweep_experiment(Echo_experiment):
         '''
 
         num_cols = kwargs.get('num_cols',3) #number of columns to plot
-        fig, axes = generate_axes(shape=(3,num_cols))
+        n = len(self.columns) // (num_cols - 1)
+        column_indices = kwargs.get('column_indices', [0] + [n * i for i in range(1, num_cols - 1)] + [-1])
+        plot_raw_data = kwargs.get('plot_raw_data', False)
+        save_name = kwargs.get('save_name', None)
 
-        n = len(self.columns)//(num_cols - 1)
-        column_indices = kwargs.get('column_indices',[0] + [n*i for i in range(1,num_cols-1)] + [-1])
+        fig, axes = generate_axes(shape=(3,num_cols))
         if num_cols != len(column_indices):
             warnings.UserWarning('The number of columns requested does not match the number of column indices given')
             return
@@ -151,30 +156,84 @@ class Sweep_experiment(Echo_experiment):
             for j in _axes:
                 j.set_title(self.sweep_parameter + ' = {}'.format(self.columns[column_indices[i]]))
 
-        if kwargs.get('plot_raw_data',False):
+        if plot_raw_data:
             for i in range(num_cols):
                 S = Echo_trace(self.Is_raw.iloc[:, column_indices[i]], self.Qs_raw.iloc[:, column_indices[i]], **kwargs)
                 _axes = (axes[i], axes[i + num_cols], axes[i + 2 * num_cols])
                 _axes = S.plot(axes=_axes, **kwargs)
 
         plt.tight_layout()
-        save_name = kwargs.get('save_name',None)
         if save_name:
             plt.savefig(self.save_loc + save_name)
             plt.close()
         else:
             plt.show()
 
-    def rename_columns(self,new_columns):
+
+class T1_measurement(Sweep_experiment):
+
+    def __init__(self,**kwargs):
+        super().__init__(**kwargs)
+
+        rep_time = kwargs.get('rep_time',None) #period of looped wait time in pulse sequence
+        if rep_time:
+            self.convert_reps_to_time(rep_time)
+
+    def fit_integrated_echos(self,signals=['I','Q','IQ'],plot=True,**kwargs):
         '''
-        Rename the column indicies of self.Is and self.Qs
+        Use T1_fits class to fit the signals specified
+
+        guessess : work as p0 in sp.optimize.curve_fit utilized in T1_fits. Should be given as (T1,a,b)
         '''
 
-        if len(self.columns) != len(new_columns):
-            raise ValueError('Number of new column names provided is {}, '
-                             'number of column names required is {}'.format(len(new_columns),len(self.columns)))
+        guesses = kwargs.get('guesses',{i : None for i in signals})
 
-        _map = {self.columns[i]:new_columns[i] for i in range(len(self.columns))}
-        self.Is = self.Is.rename(columns=_map)
-        self.Qs = self.Qs.rename(columns=_map)
-        self.columns = new_columns
+        self.T1_fits = {i : T1_fit(self.integrated_echos[i],guess=guesses[i]) for i in signals}
+
+        if plot:
+            self.plot_fit_integrated_echos(signals,**kwargs)
+
+    def plot_fit_integrated_echos(self,signals,**kwargs):
+
+        legend_loc = kwargs.get('legend_loc', {i: 1 for i in signals})
+        save_name = kwargs.get('save_name',None)
+        axes = kwargs.get('axes',None)
+        _flag_axes_supplied = True
+        if not axes:
+            fig,axes = generate_axes(shape=(3,1))
+            _flag_axes_supplied = False
+
+        axes = self.plot_integrated_echos(axes=axes)
+
+        for i in zip(axes,['I','Q','IQ']):
+            if i[1] in signals:
+                i[0].plot(self.T1_fits[i[1]].x,self.T1_fits[i[1]].fit)
+                i[0].add_artist(AnchoredText(self.T1_fits[i[1]].result_string(),loc=legend_loc[i[1]]))
+
+        if _flag_axes_supplied:
+            return(axes)
+        plt.tight_layout()
+        if save_name:
+            plt.savefig(self.save_loc + self.save_name)
+            plt.close()
+        else:
+            plt.show()
+
+    def convert_reps_to_time(self,fixed_delay,rep_time):
+        '''
+        The wait time in T1 experiments (self.columns) is often saved as the number of times some small period of time
+        is repeated. This converts the number of repetitions into a time in ms and relabels the columns
+
+        fixed_delay : us
+        rep_time : us
+        '''
+
+        self.relabel_columns(rep_time*self.columns*1e-3 + fixed_delay*1e-3)
+        self.sweep_parameter = 'Wait Time (ms)'
+
+
+
+
+
+
+

@@ -13,13 +13,13 @@ class Echo_trace():
     '''
 
     def __init__(self,I,Q,time=None,**kwargs):
-
         '''
         time = np.ndarray or pd.core.series.Series
         I = np.ndarray or pd.core.series.Series
         Q = np.ndarray or pd.core.series.Series
         '''
 
+        self.save_loc = kwargs.get('save_loc', None)
 
         self.data = pd.DataFrame(columns=('time', 'I', 'Q', 'S', 'IQ'))
         if (type(I) == type(Q)) and (type(I) == np.ndarray):
@@ -34,8 +34,9 @@ class Echo_trace():
         self.data['S'] = self.data['I'] + 1j*self.data['Q']
         self.data['IQ'] = np.abs(self.data['S'])
         self.dt = self.data['time'].iloc[2] - self.data['time'].iloc[1]
+        self.discriminators = {} #record values used to discriminate noise from signal (used in integration)
         self._flag_discriminators = False #True when discriminators have been created
-        self.save_loc = kwargs.get('save_loc',None)
+        self.noise_range = kwargs.get('noise_range',None) #(t1,t2,t3,t4) define two continuous segments of baseline noise
 
     def rotate(self,theta):
         '''
@@ -48,15 +49,18 @@ class Echo_trace():
 
     def trim(self,t1,t2):
         '''
-        trims self.Is and self.Qs to only include times between t1 and t2 (e.g. to cut out ringdown)
+        Trims self.Is and self.Qs to only include times between t1 and t2 (e.g. to cut out ringdown)
         '''
 
         self.data = self.data[(self.data['time'] > t1) & (self.data['time'] < t2)]
 
-    def remove_baseline(self,t1,t2,t3,t4,order=1):
+    def remove_baseline(self,order=1):
+        '''
+        Removes the baseline of the data using noise_range to specify the values that should be centered at 0
+        '''
 
         for col in ['I','Q']:
-            self.data.loc[:,col] = remove_polynomial_baseline(self.data['time'],np.array(self.data[col]),t1,t2,t3,t4,order)
+            self.data.loc[:,col] = remove_polynomial_baseline(self.data['time'],np.array(self.data[col]),*self.noise_range,order)
         self.data['S'] = self.data['I'] + 1j*self.data['Q']
         self.data['IQ'] = np.abs(self.data['S'])
 
@@ -69,6 +73,7 @@ class Echo_trace():
         IQ_style = kwargs.get('IQ_style','magnitude') #'complex_circle' or 'magnitude'
         axes = kwargs.get('axes',None) #user can supply ax1,ax2,ax3 which will be returned to them
         label = kwargs.get('label',None)
+        save_name = kwargs.get('save_name', None)
 
         if not axes:
             fig, [ax1,ax2,ax3] = generate_axes(shape=(3,1))
@@ -110,7 +115,6 @@ class Echo_trace():
 
         if not axes:
             plt.tight_layout()
-            save_name = kwargs.get('save_name',None)
             if save_name:
                 plt.savefig(self.save_loc + save_name)
                 plt.close()
@@ -119,10 +123,10 @@ class Echo_trace():
         else:
             return(ax1,ax2,ax3)
 
-    def create_discriminators(self,t1,t2,t3=None,t4=None,**kwargs):
+    def create_discriminators(self,**kwargs):
         '''
-        Using t1 - t4 it creates single values corresponding to the noise in I, Q, and IQ that can be used for
-        slicing self.data.
+        Using self.noise_range create single values corresponding to the noise in I, Q, and IQ
+        (e.g. for use in slicing self.data)
 
         std_mutliplier : discriminators are multiples of the standard deviation in each signal. Supplied via kwargs
         '''
@@ -130,52 +134,61 @@ class Echo_trace():
         std_multiplier = kwargs.get('std_multiplier',1)
 
         _generate_reduced = lambda ta,tb:  self.data[(self.data['time'] >= ta) & (self.data['time'] <= tb)]
-        _reduced = _generate_reduced(t1,t2)
-        if t3:
-            _reduced = pd.concat((_reduced,_generate_reduced(t3,t4)))
+        _reduced = pd.concat((_generate_reduced(*self.noise_range[:2]),_generate_reduced(*self.noise_range[2:])))
 
-        self.discriminators = {}
+
         for i in ['I','Q','IQ']:
             self.discriminators[i] = std_multiplier*np.std(_reduced[i])
 
         self._flag_discriminators = True
 
     def integrate_echo(self,**kwargs):
+        '''
+        Integrates the echo signals by filtering summing the data in self.data that is filtered based on the
+        discriminators
+        '''
 
-        noise_range = kwargs.get('noise_range',None) #tuple of t1,t2,t3,t4
-        if noise_range:
-            self.create_discriminators(*noise_range)
+        if self.noise_range and not self._flag_discriminators != 0:
+            self.create_discriminators()
+        else:
+            print('Must specify noise_range before integrating.')
+            return
 
         _IQ = self.data[self.data['IQ'] > self.discriminators['IQ']]['IQ']
         _I = self.data[(self.data['I'] > self.discriminators['I']) | (self.data['I'] < -1*self.discriminators['I'])]['I']
         _Q = self.data[(self.data['Q'] > self.discriminators['Q']) | (self.data['Q'] < -1*self.discriminators['Q'])]['Q']
 
         self.integrated_echo = {}
+        self.integrated_echo['I'] = _I.sum() * self.dt
+        self.integrated_echo['Q'] = _Q.sum() * self.dt
         self.integrated_echo['IQ'] = (_IQ - self.discriminators['IQ']).sum()*self.dt
-        # self.integrated_echo['I'] = np.abs(_I).sum()*self.dt
-        # self.integrated_echo['Q'] = np.abs(_Q).sum()*self.dt
-        self.integrated_echo['I'] = _I.sum()*self.dt
-        self.integrated_echo['Q'] = _Q.sum()*self.dt
+        self.integrated_echo['|I|'] = np.abs(_I).sum()*self.dt
+        self.integrated_echo['|Q|'] = np.abs(_Q).sum()*self.dt
 
         self.integrated_echo_uncertainty = {}
         for i in zip([_I,_Q,_IQ],['I','Q','IQ']):
             self.integrated_echo_uncertainty[i[1]] = i[0].count()*self.discriminators[i[1]]*self.dt
+        for i in zip(['I','Q'],['|I|','|Q|']):
+            self.integrated_echo_uncertainty[i[1]] = self.integrated_echo_uncertainty[i[0]]
 
 def compare_traces(trace1,trace2,**kwargs):
-
-    '''overlays Echo_trace.plot of the two Echo_trace objects for a direct comparison'''
-
-    axes = kwargs.get('axes',None)
-    _flag_axis_supplied = True
-    if not axes:
-        fig,axes = generate_axes(shape=(3,1))
-        _flag_axis_supplied = False
+    '''
+    Overlays Echo_trace.plot of the two Echo_trace objects for a direct comparison
+    '''
 
     I_lims = kwargs.get('I_lims',[-1,1])
     Q_lims = kwargs.get('Q_lims',[-1,1])
     IQ_style = kwargs.get('IQ_style','magnitude')
     labels = kwargs.get('labels',(None,None))
     legend = kwargs.get('legend',False)
+    save_name = kwargs.get('save_name',None)
+    axes = kwargs.get('axes',None)
+
+
+    _flag_axis_supplied = True
+    if not axes:
+        fig,axes = generate_axes(shape=(3,1))
+        _flag_axis_supplied = False
 
     trace1.plot(axes=axes,I_lims=I_lims,Q_lims=Q_lims,IQ_style=IQ_style,label=labels[0])
     trace2.plot(axes=axes,I_lims=I_lims,Q_lims=Q_lims,IQ_style=IQ_style,label=labels[1])
@@ -188,7 +201,6 @@ def compare_traces(trace1,trace2,**kwargs):
         return(axes)
 
     plt.tight_layout()
-    save_name = kwargs.get('save_name',None)
     if save_name:
         plt.savefig(save_name)
         plt.close()

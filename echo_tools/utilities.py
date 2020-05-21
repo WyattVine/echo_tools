@@ -6,9 +6,7 @@ import matplotlib as mpl
 from cycler import cycler
 
 def color_palette():
-    # https://refactoring-ui.nyc3.cdn.digitaloceanspaces.com/previews/whats-in-a-color-palette-01.png
-    return(['#20639B','#ED553B','#3CAEA3','#F6D55C','#173F5F'])
-
+    return(['#20639B','#C4000D','#67BC25','#F68100'])
 
 def update_matplot_style():
 
@@ -17,8 +15,8 @@ def update_matplot_style():
     mpl.rcParams['axes.prop_cycle'] = cycler('color',colors)
     mpl.rcParams['image.aspect'] = 'auto'
     mpl.rcParams['image.origin'] = 'lower'
-    mpl.rcParams['image.cmap'] = 'cycle'
-    mpl.rcParams['lines.markersize'] = 10
+    mpl.rcParams['image.cmap'] = 'viridis'
+    mpl.rcParams['lines.markersize'] = 5
 
 def generate_axes(shape,**kwargs):
     '''
