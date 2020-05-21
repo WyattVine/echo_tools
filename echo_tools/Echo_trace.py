@@ -60,10 +60,10 @@ class Echo_trace():
     def plot(self,**kwargs):
 
         min_max_times = [self.data['time'].min(),self.data['time'].max()]
-        I_lims = kwargs.get('I_lims',[-0.5,0.5])
-        Q_lims = kwargs.get('Q_lims', [-0.5, 0.5])
+        I_lims = kwargs.get('I_lims',[-1,1])
+        Q_lims = kwargs.get('Q_lims', [-1, 1])
         IQ_lims = kwargs.get('IQ_lims',[-0.05,1.0])
-        IQ_style = kwargs.get('IQ_style','complex_circle') #'complex_circle' or 'magnitude'
+        IQ_style = kwargs.get('IQ_style','magnitude') #'complex_circle' or 'magnitude'
         axes = kwargs.get('axes',None) #user can supply ax1,ax2,ax3 which will be returned to them
         label = kwargs.get('label',None)
 
@@ -149,8 +149,10 @@ class Echo_trace():
 
         self.integrated_echo = {}
         self.integrated_echo['IQ'] = (_IQ - self.discriminators['IQ']).sum()*self.dt
-        self.integrated_echo['I'] = np.abs(_I).sum()*self.dt
-        self.integrated_echo['Q'] = np.abs(_Q).sum()*self.dt
+        # self.integrated_echo['I'] = np.abs(_I).sum()*self.dt
+        # self.integrated_echo['Q'] = np.abs(_Q).sum()*self.dt
+        self.integrated_echo['I'] = _I.sum()*self.dt
+        self.integrated_echo['Q'] = _Q.sum()*self.dt
 
         self.integrated_echo_uncertainty = {}
         for i in zip([_I,_Q,_IQ],['I','Q','IQ']):
