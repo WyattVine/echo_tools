@@ -2,6 +2,9 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from .utilities import *
+update_matplot_style()
+
+et_colors = color_palette()
 
 class Echo_trace():
 

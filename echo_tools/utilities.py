@@ -2,7 +2,23 @@ import pandas as pd
 import numpy as np
 import scipy as sp
 import matplotlib.pyplot as plt
+import matplotlib as mpl
+from cycler import cycler
 
+def color_palette():
+    # https://refactoring-ui.nyc3.cdn.digitaloceanspaces.com/previews/whats-in-a-color-palette-01.png
+    return(['#20639B','#ED553B','#3CAEA3','#F6D55C','#173F5F'])
+
+
+def update_matplot_style():
+
+    colors = color_palette()
+    mpl.rcParams['lines.linewidth'] = 1.5
+    mpl.rcParams['axes.prop_cycle'] = cycler('color',colors)
+    mpl.rcParams['image.aspect'] = 'auto'
+    mpl.rcParams['image.origin'] = 'lower'
+    mpl.rcParams['image.cmap'] = 'cycle'
+    mpl.rcParams['lines.markersize'] = 10
 
 def generate_axes(shape,**kwargs):
     '''

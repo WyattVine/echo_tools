@@ -7,6 +7,9 @@ import warnings
 from .utilities import *
 from . Echo_experiment import *
 from .Echo_trace import *
+update_matplot_style()
+
+et_colors = color_palette()
 
 
 class Sweep_experiment(Echo_experiment):
@@ -111,10 +114,10 @@ class Sweep_experiment(Echo_experiment):
             fig, [ax1,ax2,ax3] = generate_axes(shape=(3,1))
 
             for i in zip([ax1, ax2, ax3], ['I', 'Q', 'IQ']):
-                i[0].scatter(x,self.integrated_echos.loc[:,i[1]],s=3,color='b')
+                i[0].plot(x,self.integrated_echos.loc[:,i[1]],'o',markersize=3)
                 _yplus = np.array(self.integrated_echos.loc[:,i[1]]+self.integrated_echo_uncertainties.loc[:,i[1]]/2)
                 _yminus = np.array(self.integrated_echos.loc[:,i[1]]-self.integrated_echo_uncertainties.loc[:,i[1]]/2)
-                i[0].fill_between(x,_yplus,_yminus,color='b',alpha=0.2)
+                i[0].fill_between(x,_yplus,_yminus,alpha=0.2)
                 i[0].set_ylabel(i[1] + r'  (V$\cdot \mu$s)')
                 i[0].set_xlabel(self.sweep_parameter)
 
