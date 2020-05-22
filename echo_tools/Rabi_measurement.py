@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 from matplotlib.offsetbox import AnchoredText
 import warnings
 from .utilities import *
-from . Echo_experiment import *
 from .Echo_trace import *
 from .fitting_tools import *
 from .Sweep_experiment import *

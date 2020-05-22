@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 from matplotlib.offsetbox import AnchoredText
 import warnings
 from .utilities import *
-from . Echo_experiment import *
 from .Echo_trace import *
 from .fitting_tools import *
 from .Sweep_experiment import *
@@ -23,14 +22,22 @@ class T1_measurement(Sweep_experiment):
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
 
-        rep_time = kwargs.get('rep_time',None) #period of looped wait time in pulse sequence
-        if rep_time:
-            self.convert_reps_to_time(rep_time)
 
-    def fit_integrated_echos(self,signals=['I','Q','IQ'],plot=True,**kwargs):
+    def convert_reps_to_time(self,fixed_delay,rep_time):
+        '''
+        The wait time in T1 experiments (self.columns) is often saved as the number of times some small period of time
+        is repeated. This converts the number of repetitions into a time in ms and relabels the columns
+
+        fixed_delay : us
+        rep_time : us
+        '''
+
+        self.columns = rep_time*self.columns*1e-3 + fixed_delay*1e-3
+        self.sweep_parameter = 'Wait Time (ms)'
+
+    def fit_integrated_echos(self,signals=('I','Q','IQ'),plot=True,**kwargs):
         '''
         Use T1_fits class to fit the signals specified
-
         guesses : work as p0 in sp.optimize.curve_fit utilized in T1_fits. Should be given as (T1,a,b)
         '''
 
@@ -39,6 +46,7 @@ class T1_measurement(Sweep_experiment):
 
         if plot:
             self.plot_fit_integrated_echos(signals,**kwargs)
+
 
     def plot_fit_integrated_echos(self,signals,save_name=None,**kwargs):
 
@@ -53,7 +61,7 @@ class T1_measurement(Sweep_experiment):
         for i in zip(axes,['I','Q','IQ']):
             if i[1] in signals:
                 i[0].plot(self.T1_fits[i[1]].x,self.T1_fits[i[1]].fit)
-                i[0].add_artist(AnchoredText(self.T1_fits[i[1]].result_string(),loc=legend_loc[i[1]]))
+                i[0].add_artist(AnchoredText(self.T1_fits[i[1]].result_string,loc=legend_loc[i[1]]))
 
         if _flag_axes_supplied:
             return(axes)
@@ -64,14 +72,4 @@ class T1_measurement(Sweep_experiment):
         else:
             plt.show()
 
-    def convert_reps_to_time(self,fixed_delay,rep_time):
-        '''
-        The wait time in T1 experiments (self.columns) is often saved as the number of times some small period of time
-        is repeated. This converts the number of repetitions into a time in ms and relabels the columns
 
-        fixed_delay : us
-        rep_time : us
-        '''
-
-        self.relabel_columns(rep_time*self.columns*1e-3 + fixed_delay*1e-3)
-        self.sweep_parameter = 'Wait Time (ms)'

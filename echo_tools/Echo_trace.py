@@ -12,86 +12,111 @@ class Echo_trace():
     Basic representation of a single echo time trace. Used
     '''
 
-    def __init__(self,I,Q,time=None,**kwargs):
+    def __init__(self,I=pd.Series(dtype=np.float64),Q=pd.Series(dtype=np.float64),data_loc=None,save_loc=None,read_data=False,**kwargs):
         '''
-        time = np.ndarray or pd.core.series.Series
-        I = np.ndarray or pd.core.series.Series
-        Q = np.ndarray or pd.core.series.Series
+        I = pd.core.series.Series
+        Q = pd.core.series.Series
+        I and Q can be supplied as arguments or read in by specifying data_loc and file name convention
         '''
 
-        self.save_loc = kwargs.get('save_loc', None)
+        self.save_loc = save_loc
+        self.data_loc = data_loc
+        self.data_name_convention = kwargs.get('data_name_convention','I')
+        self.data_file_type = kwargs.get('data_file_type','pkl')
+        self.noise_range = kwargs.get('noise_range',None)  # (t1,t2,t3,t4) define two continuous segments of baseline noise
 
-        self.data = pd.DataFrame(columns=('time', 'I', 'Q', 'IQ'),dtype=np.float64)
-        if (type(I) == type(Q)) and (type(I) == np.ndarray):
-            self.data['time'] = time
-            self.data['I'] = I
-            self.data['Q'] = Q
-        elif (type(I) == type(Q)) and (type(I) == pd.core.series.Series):
+        if read_data:
+            self.read_data()
+        elif (not I.empty) and (not Q.empty):
+            self._create_DataFrame(I,Q)
+
+
+    @property
+    def signals(self):
+        return('I','Q','IQ')
+
+    @property
+    def IQ(self):
+        return(np.sqrt(self.data['I'] ** 2 + self.data['Q'] ** 2))
+
+    @property
+    def dt(self):
+        return(self.data['time'].iloc[1] - self.data['time'].iloc[0])
+
+    @property
+    def max_signal(self):
+        return(self.data[['I','Q']].max().max())
+
+    @property
+    def min_signal(self):
+        return(self.data[['I','Q']].min().min())
+
+    @property
+    def noise_data(self):
+        return(pd.concat((self.select_time_range(*self.noise_range[:2]), self.select_time_range(*self.noise_range[2:]))))
+
+    def select_time_range(self,ta,tb):
+        return(self.data[(self.data['time'] >= ta) & (self.data['time'] <= tb)].copy())
+
+    def discriminator(self,signal,std_multiplier):
+        '''A multiple of the standard deviation of the noise on signal. signal=('I','Q','IQ') '''
+        return(std_multiplier * np.std(self.noise_data[signal]))
+
+    def trim(self,t1,t2):
+        '''Trims data between times t1,t2 for cleaning data (e.g. eliminating cavity ringdown)'''
+        self.data = self.select_time_range(t1,t2)
+
+
+    def read_data(self):
+        if self.data_file_type == 'pkl':
+            I = pd.read_pickle(self.data_loc + self.data_name_convention + '.pkl')
+            Q = pd.read_pickle(self.data_loc + self.data_name_convention.replace('I','Q') + '.pkl')
+        elif self.data_file_type == 'csv':
+            I = pd.read_csv(self.data_loc + self.data_name_convention + '.csv',index_col=0)
+            Q = pd.read_csv(self.data_loc + self.data_name_convention.replace('I','Q') + '.csv',index_col=0)
+        self._create_DataFrame(I, Q)
+
+
+    def _create_DataFrame(self,I,Q):
+        self.data = pd.DataFrame(columns=('time', *self.signals),dtype=np.float64)
+        if (type(I) == type(Q)) and (type(I) == pd.core.series.Series):
             self.data['time'] = np.array(I.index)
             self.data['I'] = np.array(I)
             self.data['Q'] = np.array(Q)
-        self.data['IQ'] = np.sqrt(self.data['I']**2 + self.data['Q']**2)
-
-        self.dt = self.data['time'].iloc[2] - self.data['time'].iloc[1]
-        self.discriminators = {} #record values used to discriminate noise from signal (used in integration)
-        self._flag_discriminators = False #True when discriminators have been created
-        self.noise_range = kwargs.get('noise_range',None) #(t1,t2,t3,t4) define two continuous segments of baseline noise
+        else:
+            raise TypeError('I and Q must be supplied as pd.Series')
+        self.data['IQ'] = self.IQ.fillna(0)
 
 
     def rotate(self,theta):
-        '''
-        Rotates the echo trace by theta (radians) in complex plane
-        '''
+        '''Rotates the echo trace by theta (radians) in complex plane'''
 
         S = np.array(self.data['I'] + 1j*self.data['Q'])*np.exp(1j*theta)
         self.data['I'] = S.real
         self.data['Q'] = S.imag
-
-
-    def trim(self,t1,t2):
-        '''
-        Trims self.Is and self.Qs to only include times between t1 and t2 (e.g. to cut out ringdown)
-        '''
-
-        self.data = self.data[(self.data['time'] > t1) & (self.data['time'] < t2)]
-
-
-    def remove_baseline_old(self,order=1):
-        '''
-        Removes the baseline of the data using noise_range to specify the values that should be centered at 0
-        '''
-
-        for col in ['I','Q']:
-            self.data.loc[:,col] = remove_polynomial_baseline(self.data['time'],np.array(self.data[col]),*self.noise_range,order)
-        self.data['IQ'] = np.sqrt(self.data['I']**2 + self.data['Q']**2)
+        self.data['IQ'] = self.IQ
 
 
     def remove_baseline(self,order=1,**kwargs):
         '''
         Removes the baseline of the data using noise_range to specify the values that should be centered at 0
-
         order: order of polynomial used to fit baseline. (1, 2 or 3)
         '''
 
         fit_classes = {1: Linear_fit, 2: Quadratic_fit, 3: Cubic_fit}
-        noise_data = pd.concat((self.select_time_range(*self.noise_range[:2]),self.select_time_range(*self.noise_range[2:])))
-        self.baseline_fits = {i : fit_classes[order](noise_data['time'],noise_data[i],**kwargs) for i in ['I','Q']}
-
+        self.baseline_fits = {i : fit_classes[order](self.noise_data['time'],self.noise_data[i],**kwargs) for i in ['I','Q']}
         for key,val in self.baseline_fits.items():
             self.data[key] = self.data[key] - np.array([val.function(i,*val.params) for i in self.data['time']])
         self.data['IQ'] = np.sqrt(self.data['I']**2 + self.data['Q']**2)
 
 
     def plot(self,save_name=None,**kwargs):
-        '''
-        Plots I, Q and IQ
-        Can evaulate descriminators/integration by plotting after creating discriminators (_flag_discriminators = True)
-        '''
+        '''Plots I, Q and IQ'''
 
         xlim = kwargs.get('xlim',[self.data['time'].min(),self.data['time'].max()])
-        ylim = kwargs.get('ylim',[1.05*self.data[['I','Q']].min().min(),1.05*self.data[['I','Q']].max().max()])
+        ylim = kwargs.get('ylim',[1.05*self.min_signal,1.05*self.max_signal])
         IQ_style = kwargs.get('IQ_style','magnitude') #'complex_circle' or 'magnitude'
-        axes = kwargs.get('axes',None) #user can supply ax1,ax2,ax3 which will be returned to them
+        axes = kwargs.get('axes',None)
         label = kwargs.get('label',None)
 
         if not axes:
@@ -101,7 +126,7 @@ class Echo_trace():
 
         for i in zip([ax1,ax2],['I','Q'],['I (V)','Q (V)']):
             i[0].plot(self.data['time'],self.data[i[1]],label=label)
-            i[0].set_xlabel('Time (us)')
+            i[0].set_xlabel(r'Time ($\mu$s)')
             i[0].plot(xlim,[0,0],c='black',alpha=0.3)
             i[0].set_xlim(xlim)
             i[0].set_ylim(ylim)
@@ -119,82 +144,42 @@ class Echo_trace():
             ax3.plot(xlim, [0,0], c='black', alpha=0.3)
             ax3.set_xlim(xlim)
             ax3.set_ylim([-0.05,1.05*self.data['IQ'].max()])
-            ax3.set_xlabel('Time (us)')
+            ax3.set_xlabel(r'Time ($\mu$s)')
             ax3.set_ylabel('|IQ| (V)')
 
-        if self._flag_discriminators:
-            ax1.fill_between(xlim,[self.discriminators['I'],self.discriminators['I']],[-1*self.discriminators['I'],-1*self.discriminators['I']],color='r',alpha=0.2)
-            ax2.fill_between(xlim,[self.discriminators['Q'],self.discriminators['Q']],[-1*self.discriminators['Q'],-1*self.discriminators['Q']],color='r',alpha=0.2)
-            if IQ_style == 'complex_circle':
-                discriminator_circle = circle(r=self.discriminators['IQ'])
-                ax3.plot(discriminator_circle.coords.real, discriminator_circle.coords.imag, c='r')
-            elif IQ_style == 'magnitude':
-                ax3.fill_between(xlim, [self.discriminators['IQ'], self.discriminators['IQ']],[0,0], color='r', alpha=0.2)
-
-        if not axes:
-            plt.tight_layout()
-            if save_name:
-                plt.savefig(self.save_loc + save_name)
-                plt.close()
-            else:
-                plt.show()
+        if axes:
+            return(ax1, ax2, ax3)
+        plt.tight_layout()
+        if save_name:
+            plt.savefig(self.save_loc + save_name)
+            plt.close()
         else:
-            return(ax1,ax2,ax3)
+            plt.show()
 
 
-    def create_discriminators(self,**kwargs):
+    def integrate_echo(self,std_multiplier=1,**kwargs):
         '''
-        Using self.noise_range create single values corresponding to the noise in I, Q, and IQ
-        (e.g. for use in slicing self.data)
-
-        std_mutliplier : discriminators are multiples of the standard deviation in each signal. Supplied via kwargs
+        Integrates the echo signals by filtering summing the data in self.data that is filtered based on discriminators
+        std_multiplier: the multiplier of the std. dev. of the noise used for constructing discriminators
         '''
 
-        std_multiplier = kwargs.get('std_multiplier',1)
-        noise = pd.concat((self.select_time_range(*self.noise_range[:2]),self.select_time_range(*self.noise_range[2:])))
-        for i in ['I','Q','IQ']:
-            self.discriminators[i] = std_multiplier*np.std(noise[i])
-        self._flag_discriminators = True
-
-
-    def integrate_echo(self,**kwargs):
-        '''
-        Integrates the echo signals by filtering summing the data in self.data that is filtered based on the
-        discriminators
-        '''
-
-        if self.noise_range and not self._flag_discriminators != 0:
-            self.create_discriminators()
-        else:
-            print('Must specify noise_range before integrating.')
-            return
-
-        _IQ = self.data[self.data['IQ'] > self.discriminators['IQ']]['IQ']
-        _I = self.data[(self.data['I'] > self.discriminators['I']) | (self.data['I'] < -1*self.discriminators['I'])]['I']
-        _Q = self.data[(self.data['Q'] > self.discriminators['Q']) | (self.data['Q'] < -1*self.discriminators['Q'])]['Q']
+        discriminators = {i : self.discriminator(i,std_multiplier) for i in self.signals}
+        _I = self.data[(self.data['I'] > discriminators['I']) | (self.data['I'] < -1*discriminators['I'])]['I']
+        _Q = self.data[(self.data['Q'] > discriminators['Q']) | (self.data['Q'] < -1*discriminators['Q'])]['Q']
+        _IQ = self.data[self.data['IQ'] > discriminators['IQ']]['IQ']
 
         self.integrated_echo = {}
         self.integrated_echo['I'] = _I.sum() * self.dt
         self.integrated_echo['Q'] = _Q.sum() * self.dt
-        self.integrated_echo['IQ'] = (_IQ - self.discriminators['IQ']).sum()*self.dt
+        self.integrated_echo['IQ'] = (_IQ - discriminators['IQ']).sum() * self.dt
         self.integrated_echo['|I|'] = np.abs(_I).sum()*self.dt
         self.integrated_echo['|Q|'] = np.abs(_Q).sum()*self.dt
 
         self.integrated_echo_uncertainty = {}
-        for i in zip([_I,_Q,_IQ],['I','Q','IQ']):
-            self.integrated_echo_uncertainty[i[1]] = i[0].count()*self.discriminators[i[1]]*self.dt
+        for i in zip([_I,_Q,_IQ],self.signals):
+            self.integrated_echo_uncertainty[i[1]] = i[0].count()*discriminators[i[1]]*self.dt
         for i in zip(['I','Q'],['|I|','|Q|']):
             self.integrated_echo_uncertainty[i[1]] = self.integrated_echo_uncertainty[i[0]]
-
-
-    def select_time_range(self,ta,tb):
-        '''
-        Returns a copy of self.data between times ta and tb
-        '''
-
-        selection = self.data[(self.data['time'] >= ta) & (self.data['time'] <= tb)].copy()
-        return(selection)
-
 
     def compare_with_trace(self,trace,save_name=None,**kwargs):
         '''
@@ -219,7 +204,6 @@ class Echo_trace():
 
         if _flag_axis_supplied:
             return(axes)
-
         plt.tight_layout()
         if save_name:
             plt.savefig(save_name)

@@ -16,7 +16,7 @@ def update_matplot_style():
     mpl.rcParams['image.aspect'] = 'auto'
     mpl.rcParams['image.origin'] = 'lower'
     mpl.rcParams['image.cmap'] = 'viridis'
-    mpl.rcParams['lines.markersize'] = 5
+    mpl.rcParams['lines.markersize'] = 3
 
 def generate_axes(shape,**kwargs):
     '''

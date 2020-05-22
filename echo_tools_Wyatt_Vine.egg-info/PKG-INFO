@@ -1,10 +1,10 @@
 Metadata-Version: 2.1
-Name: echo_tools
+Name: echo-tools-Wyatt-Vine
 Version: 0.0.1
-Summary: A package for analysis of simple spin echo experiments.
+Summary: A small analysis package
 Home-page: https://github.com/WyattVine/echo_tools
 Author: Wyatt Vine
-Author-email: wyattvine@gmail.com
+Author-email: author@example.com
 License: UNKNOWN
 Description: This is an ESR echo analysis package. You can use
         (https://github.com/WyattVine/echo_tools/)
