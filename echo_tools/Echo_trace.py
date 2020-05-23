@@ -177,7 +177,7 @@ class Echo_trace():
 
         self.integrated_echo_uncertainty = {}
         for i in zip([_I,_Q,_IQ],self.signals):
-            self.integrated_echo_uncertainty[i[1]] = i[0].count()*discriminators[i[1]]*self.dt
+            self.integrated_echo_uncertainty[i[1]] = i[0].count()*discriminators[i[1]]*self.dt #/std_multiplier
         for i in zip(['I','Q'],['|I|','|Q|']):
             self.integrated_echo_uncertainty[i[1]] = self.integrated_echo_uncertainty[i[0]]
 
@@ -187,7 +187,6 @@ class Echo_trace():
         '''
 
         labels = kwargs.get('labels',(None,None))
-        legend = kwargs.get('legend',False)
         axes = kwargs.get('axes',None)
 
         _flag_axis_supplied = True
@@ -198,15 +197,22 @@ class Echo_trace():
         self.plot(axes=axes,label=labels[0])
         trace.plot(axes=axes,label=labels[1])
 
-        if legend:
-            for i in axes:
-                i.legend()
+        def create_ylim(signal):
+            _min = min(self.data[signal].min(),trace.data[signal].min())
+            _max = max(self.data[signal].max(),trace.data[signal].max())
+            buffer = 0.1*max(_max,-1*_min)
+            return(_min-buffer,_max+buffer)
+
+        for i in zip(axes,self.signals):
+            i[0].set_ylim(create_ylim(i[1]))
+            if labels[0]:
+                i[0].legend()
 
         if _flag_axis_supplied:
             return(axes)
         plt.tight_layout()
         if save_name:
-            plt.savefig(save_name)
+            plt.savefig(self.save_loc + save_name)
             plt.close()
         else:
             plt.show()

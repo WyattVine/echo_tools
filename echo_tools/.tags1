@@ -1,0 +1,30 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	0	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.8	//
+pd	C:\Users\HybridQ\Documents\GitHub\echo_tools\echo_tools\Echo_trace.py	/^import pandas as pd$/;"	namespace	line:1
+np	C:\Users\HybridQ\Documents\GitHub\echo_tools\echo_tools\Echo_trace.py	/^import numpy as np$/;"	namespace	line:2
+matplotlib	C:\Users\HybridQ\Documents\GitHub\echo_tools\echo_tools\Echo_trace.py	/^import matplotlib.pyplot as plt$/;"	namespace	line:3
+plt	C:\Users\HybridQ\Documents\GitHub\echo_tools\echo_tools\Echo_trace.py	/^import matplotlib.pyplot as plt$/;"	namespace	line:3
+et_colors	C:\Users\HybridQ\Documents\GitHub\echo_tools\echo_tools\Echo_trace.py	/^et_colors = color_palette()$/;"	variable	line:7
+Echo_trace	C:\Users\HybridQ\Documents\GitHub\echo_tools\echo_tools\Echo_trace.py	/^class Echo_trace():$/;"	class	line:9
+__init__	C:\Users\HybridQ\Documents\GitHub\echo_tools\echo_tools\Echo_trace.py	/^    def __init__(self,I=pd.Series(dtype=np.float64),Q=pd.Series(dtype=np.float64),data_loc=None,save_loc=None,read_data=False,**kwargs):$/;"	member	line:15	class:Echo_trace
+signals	C:\Users\HybridQ\Documents\GitHub\echo_tools\echo_tools\Echo_trace.py	/^    def signals(self):$/;"	member	line:35	class:Echo_trace
+IQ	C:\Users\HybridQ\Documents\GitHub\echo_tools\echo_tools\Echo_trace.py	/^    def IQ(self):$/;"	member	line:39	class:Echo_trace
+dt	C:\Users\HybridQ\Documents\GitHub\echo_tools\echo_tools\Echo_trace.py	/^    def dt(self):$/;"	member	line:43	class:Echo_trace
+max_signal	C:\Users\HybridQ\Documents\GitHub\echo_tools\echo_tools\Echo_trace.py	/^    def max_signal(self):$/;"	member	line:47	class:Echo_trace
+min_signal	C:\Users\HybridQ\Documents\GitHub\echo_tools\echo_tools\Echo_trace.py	/^    def min_signal(self):$/;"	member	line:51	class:Echo_trace
+noise_data	C:\Users\HybridQ\Documents\GitHub\echo_tools\echo_tools\Echo_trace.py	/^    def noise_data(self):$/;"	member	line:55	class:Echo_trace
+select_time_range	C:\Users\HybridQ\Documents\GitHub\echo_tools\echo_tools\Echo_trace.py	/^    def select_time_range(self,ta,tb):$/;"	member	line:58	class:Echo_trace
+discriminator	C:\Users\HybridQ\Documents\GitHub\echo_tools\echo_tools\Echo_trace.py	/^    def discriminator(self,signal,std_multiplier):$/;"	member	line:61	class:Echo_trace
+trim	C:\Users\HybridQ\Documents\GitHub\echo_tools\echo_tools\Echo_trace.py	/^    def trim(self,t1,t2):$/;"	member	line:65	class:Echo_trace
+read_data	C:\Users\HybridQ\Documents\GitHub\echo_tools\echo_tools\Echo_trace.py	/^    def read_data(self):$/;"	member	line:70	class:Echo_trace
+_create_DataFrame	C:\Users\HybridQ\Documents\GitHub\echo_tools\echo_tools\Echo_trace.py	/^    def _create_DataFrame(self,I,Q):$/;"	member	line:80	class:Echo_trace
+rotate	C:\Users\HybridQ\Documents\GitHub\echo_tools\echo_tools\Echo_trace.py	/^    def rotate(self,theta):$/;"	member	line:91	class:Echo_trace
+remove_baseline	C:\Users\HybridQ\Documents\GitHub\echo_tools\echo_tools\Echo_trace.py	/^    def remove_baseline(self,order=1,**kwargs):$/;"	member	line:100	class:Echo_trace
+plot	C:\Users\HybridQ\Documents\GitHub\echo_tools\echo_tools\Echo_trace.py	/^    def plot(self,save_name=None,**kwargs):$/;"	member	line:113	class:Echo_trace
+integrate_echo	C:\Users\HybridQ\Documents\GitHub\echo_tools\echo_tools\Echo_trace.py	/^    def integrate_echo(self,std_multiplier=1,**kwargs):$/;"	member	line:160	class:Echo_trace
+compare_with_trace	C:\Users\HybridQ\Documents\GitHub\echo_tools\echo_tools\Echo_trace.py	/^    def compare_with_trace(self,trace,save_name=None,**kwargs):$/;"	member	line:184	class:Echo_trace
+create_ylim	C:\Users\HybridQ\Documents\GitHub\echo_tools\echo_tools\Echo_trace.py	/^        def create_ylim(signal):$/;"	function	line:200	function:Echo_trace.compare_with_trace

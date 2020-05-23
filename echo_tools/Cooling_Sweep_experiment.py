@@ -134,7 +134,7 @@ class Cooling_Sweep_experiment():
         self.pump_off.remove_baseline(order=order,**kwargs)
 
 
-    def plot_traces(self,num_cols=3,**kwargs):
+    def plot_traces(self,num_cols=3,save_name=None,**kwargs):
         ''''
         Overlays traces of pump_on and pump_off
         '''
@@ -149,8 +149,13 @@ class Cooling_Sweep_experiment():
         for ax in axes:
             ax.set_ylim([1.05*self.min_signal,1.05*self.max_signal])
 
+
         plt.tight_layout()
-        plt.show()
+        if save_name:
+            plt.savefig(self.save_loc + save_name)
+            plt.close()
+        else:
+            plt.show()
 
 
     def integrate_echos(self,std_multiplier=1,plot=True,**kwargs):
@@ -215,7 +220,3 @@ class Cooling_Sweep_experiment():
             plt.savefig(self.save_loc + save_name)
             plt.close()
         plt.show()
-
-
-
-
