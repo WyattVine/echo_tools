@@ -224,7 +224,18 @@ class Sweep_experiment():
         else:
             plt.show()
 
+    def plot_temperatures(self,file,**kwargs):
 
+        self.temps = pd.read_pickle(file)
+
+        fig,axes = generate_axes(shape=(1,3),figsize=(9,3))
+        for i in zip(axes,['He3_pot','He4_pot','He3_sorb']):
+            i[0].plot(self.temps[i[1]])
+            i[0].set_xlabel('Measurment Number')
+            i[0].set_ylabel('Temperature (K)')
+            i[0].set_title(i[1])
+        plt.tight_layout()
+        plt.savefig(self.save_loc + 'temperatures.png',dpi=300,bbox_inches='tight')
 
 
 
