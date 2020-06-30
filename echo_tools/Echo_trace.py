@@ -157,7 +157,7 @@ class Echo_trace():
             plt.show()
 
 
-    def integrate_echo(self,std_multiplier=1,**kwargs):
+    def integrate_echo_with_discriminators(self,std_multiplier=1,**kwargs):
         '''
         Integrates the echo signals by filtering summing the data in self.data that is filtered based on discriminators
         std_multiplier: the multiplier of the std. dev. of the noise used for constructing discriminators
@@ -180,6 +180,19 @@ class Echo_trace():
             self.integrated_echo_uncertainty[i[1]] = i[0].count()*discriminators[i[1]]*self.dt #/std_multiplier
         for i in zip(['I','Q'],['|I|','|Q|']):
             self.integrated_echo_uncertainty[i[1]] = self.integrated_echo_uncertainty[i[0]]
+
+    def integrate_echo(self,**kwargs):
+        '''
+        Integrates the echo signals by a simple sum of the signal in the time between the two slices designated as noise via noise_range
+        '''
+
+        self.integrated_echo = {}
+        _data = self.data[self.data['time'] > self.noise_range[1] & self.data['time'] < self.noise_range[2]]
+        self.integrated_echo['I'] = _data['I'].sum()
+        self.integrated_echo['Q'] = _data['Q'].sum()
+        self.integrated_echo['IQ'] = _data['IQ'].sum()
+        self.integrated_echo['|I|'] = _data['I'].apply(np.abs).sum()
+        self.integrated_echo['|Q|'] = _data['Q'].apply(np.abs).sum()
 
     def compare_with_trace(self,trace,save_name=None,**kwargs):
         '''
