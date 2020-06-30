@@ -150,20 +150,18 @@ class Sweep_experiment():
             self.integrated_echo_uncertainties = pd.DataFrame(index=self.columns, columns=self.signals, dtype=np.float64)
             for i in self.columns:
                 S = Echo_trace(self.Is.loc[:, i], self.Qs.loc[:, i],noise_range=self.noise_range)
-                S.integrate_echo_with_discriminators(std_multiplier=std_multiplier,kwargs)
-
-
-            for col in [*self.signals,'|I|','|Q|']:
-                self.integrated_echos.loc[i,col] = S.integrated_echo[col]
-                self.integrated_echo_uncertainties.loc[i, col] = S.integrated_echo_uncertainty[col]
+                S.integrate_echo_with_discriminators(std_multiplier=std_multiplier,**kwargs)
+                for col in [*self.signals,'|I|','|Q|']:
+                    self.integrated_echos.loc[i,col] = S.integrated_echo[col]
+                    self.integrated_echo_uncertainties.loc[i, col] = S.integrated_echo_uncertainty[col]
 
         else:
-            self._flag_integrated_with_discriminators = True
+            self._flag_integrated_with_discriminators = False
             for i in self.columns:
                 S = Echo_trace(self.Is.loc[:, i], self.Qs.loc[:, i], noise_range=self.noise_range)
-                S.integrate_echo(kwargs)
-            for col in [*self.signals, '|I|', '|Q|']:
-                self.integrated_echos.loc[i, col] = S.integrated_echo[col]
+                S.integrate_echo(**kwargs)
+                for col in [*self.signals, '|I|', '|Q|']:
+                    self.integrated_echos.loc[i, col] = S.integrated_echo[col]
 
         if plot:
             self.plot_integrated_echos(**kwargs)
@@ -251,7 +249,3 @@ class Sweep_experiment():
         plt.tight_layout()
         plt.savefig(self.save_loc + 'temperatures.png',dpi=300,bbox_inches='tight')
         plt.close()
-
-
-
-

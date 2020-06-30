@@ -187,12 +187,12 @@ class Echo_trace():
         '''
 
         self.integrated_echo = {}
-        _data = self.data[self.data['time'] > self.noise_range[1] & self.data['time'] < self.noise_range[2]]
-        self.integrated_echo['I'] = _data['I'].sum()
-        self.integrated_echo['Q'] = _data['Q'].sum()
-        self.integrated_echo['IQ'] = _data['IQ'].sum()
-        self.integrated_echo['|I|'] = _data['I'].apply(np.abs).sum()
-        self.integrated_echo['|Q|'] = _data['Q'].apply(np.abs).sum()
+        _data = self.data[(self.data['time'] > self.noise_range[1]) & (self.data['time'] < self.noise_range[2])]
+        self.integrated_echo['I'] = _data['I'].sum() * self.dt
+        self.integrated_echo['Q'] = _data['Q'].sum() * self.dt
+        self.integrated_echo['IQ'] = _data['IQ'].sum() * self.dt
+        self.integrated_echo['|I|'] = _data['I'].apply(np.abs).sum() * self.dt
+        self.integrated_echo['|Q|'] = _data['Q'].apply(np.abs).sum() * self.dt
 
     def compare_with_trace(self,trace,save_name=None,**kwargs):
         '''
