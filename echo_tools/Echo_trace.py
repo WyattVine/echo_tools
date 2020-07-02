@@ -124,7 +124,8 @@ class Echo_trace():
         '''Plots I, Q and IQ'''
 
         xlim = kwargs.get('xlim',[self.data['time'].min(),self.data['time'].max()])
-        ylim = kwargs.get('ylim',[1.05*self.min_signal,1.05*self.max_signal])
+        yspace = 0.05*max(np.abs(self.min_signal),np.abs(self.max_signal))
+        ylim = kwargs.get('ylim',[self.min_signal - yspace,self.max_signal + yspace])
         IQ_style = kwargs.get('IQ_style','magnitude') #'complex_circle' or 'magnitude'
         axes = kwargs.get('axes',None)
         label = kwargs.get('label',None)
@@ -135,14 +136,14 @@ class Echo_trace():
             ax1,ax2,ax3 = axes
 
         for i in zip([ax1,ax2],['I','Q'],['I (V)','Q (V)']):
-            i[0].plot(self.data['time'],self.data[i[1]],label=label)
+            i[0].plot(self.data['time'],self.data[i[1]],label=label,lw=1)
             i[0].set_xlabel(r'Time ($\mu$s)')
             i[0].plot(xlim,[0,0],c='black',alpha=0.3)
             i[0].set_xlim(xlim)
             i[0].set_ylim(ylim)
             i[0].set_ylabel(i[2])
         if IQ_style == 'complex_circle':
-            ax3.plot(self.data['I'],self.data['Q'],label=label)
+            ax3.plot(self.data['I'],self.data['Q'],label=label,lw=1)
             ax3.set_xlim(ylim)
             ax3.set_ylim(ylim)
             ax3.plot(xlim,[0,0],c='black',alpha=0.3)
@@ -150,7 +151,7 @@ class Echo_trace():
             ax3.set_xlabel('I (V)')
             ax3.set_ylabel('Q (V)')
         elif IQ_style == 'magnitude':
-            ax3.plot(self.data['time'],self.data['IQ'],label=label)
+            ax3.plot(self.data['time'],self.data['IQ'],label=label,lw=1)
             ax3.plot(xlim, [0,0], c='black', alpha=0.3)
             ax3.set_xlim(xlim)
             ax3.set_ylim([-0.05,1.05*self.data['IQ'].max()])

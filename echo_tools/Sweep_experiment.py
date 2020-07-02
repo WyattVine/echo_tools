@@ -57,6 +57,15 @@ class Sweep_experiment():
         return amps
 
     @property
+    def echo_noise_std(self):
+        df = pd.DataFrame(index=self.columns, columns=self.signals, dtype=np.float64)
+        for i in self.columns:
+            S = Echo_trace(self.Is.loc[:,i],self.Qs[:,i])
+            S.noise_range = self.noise_range
+            for j in self.signals:
+                df.loc[i,j] = S.discriminator(j,1)
+
+    @property
     def min_signal(self):
         return (self.combined_Is_Qs.min().min())
 
@@ -81,7 +90,6 @@ class Sweep_experiment():
     def extent(self):
         return([float(self.columns[0]), float(self.columns[-1]), float(self.time[0]), float(self.time[-1])])
 
-
     def read_data(self,**kwargs):
         if self.data_file_type == 'pkl':
             self.Is = pd.read_pickle(self.data_loc + self.data_name_convention + '.pkl')
@@ -90,13 +98,11 @@ class Sweep_experiment():
             self.Is = pd.read_csv(self.data_loc + self.data_name_convention + '.csv',index_col=0)
             self.Qs = pd.read_csv(self.data_loc + self.data_name_convention.replace('I','Q') + '.csv',index_col=0)
 
-
     def trim(self, t1, t2):
         '''Trims self.Is and self.Qs to only include times between t1 and t2 (e.g. to cut out ringdown)
         and cuts columns with NaN values (indicating a measurement didn't finish)'''
         self.Is = self.Is.loc[t1:t2, :].dropna(axis=1)
         self.Qs = self.Qs.loc[t1:t2, :].dropna(axis=1)
-
 
     def remove_baseline(self,order=1,**kwargs):
         ''''
@@ -206,6 +212,41 @@ class Sweep_experiment():
                 _yminus = np.array(self.integrated_echos.loc[:, i[1]] - self.integrated_echo_uncertainties.loc[:, i[1]])
                 i[0].fill_between(x, _yplus, _yminus, alpha=0.2)
             i[0].set_ylabel(i[1] + r'  (V$\cdot \mu$s)')
+            i[0].set_xlabel(self.sweep_parameter)
+
+        if _flag_axes_supplied:
+            return(axes)
+        plt.tight_layout()
+        if save_name:
+            plt.savefig(self.save_loc + save_name)
+            plt.close()
+        else:
+            plt.show()
+
+
+    def plot_echo_amplitudes(self,save_name=None,**kwargs):
+        '''
+        Plots maximum echo amplitudes and their uncertainties
+        '''
+
+        label = kwargs.get('label',None)
+        axes = kwargs.get('axes',None)
+        _flag_axes_supplied = True
+        if not axes:
+            fig, axes = generate_axes(shape=(3, 1))
+            _flag_axes_supplied = False
+
+        amps = self.echo_amplitudes
+        uncertainties = self.echo_noise_std
+        x = [float(i) for i in amps.index]
+        for i in zip(axes, self.signals):
+            i[0].plot(x, amps.loc[:, i[1]], 'o', label=label)
+
+            _yplus = np.array(self.echo_amplitudes.loc[:, i[1]] + uncertainties.loc[:, i[1]])
+            _yminus = np.array(self.echo_amplitudes.loc[:, i[1]] - uncertainties.loc[:, i[1]])
+            i[0].fill_between(x, _yplus, _yminus, alpha=0.2)
+
+            i[0].set_ylabel(i[1] + r'(V)')
             i[0].set_xlabel(self.sweep_parameter)
 
         if _flag_axes_supplied:

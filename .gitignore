@@ -22,3 +22,4 @@ echo_tools_Wyatt_Vine.egg-info/dependency_links.txt
 echo_tools_Wyatt_Vine.egg-info/SOURCES.txt
 echo_tools_Wyatt_Vine.egg-info/top_level.txt
 *.pyc
+.tags1
