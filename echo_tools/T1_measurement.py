@@ -38,7 +38,7 @@ class T1_measurement(Sweep_experiment):
     def fit_integrated_echos(self,signals=('I','Q','IQ'),plot=True,**kwargs):
         '''
         Use T1_fits class to fit the signals specified
-        guesses : work as p0 in sp.optimize.curve_fit utilized in T1_fits. Should be given as (T1,a,b)
+        guesses : dictionary with keys I,Q,IQ containing p0 for sp.optimize.curve_fit. Should be given as (T1,a,b)
         '''
 
         guesses = kwargs.get('guesses',{i : None for i in signals})
@@ -71,5 +71,3 @@ class T1_measurement(Sweep_experiment):
             plt.close()
         else:
             plt.show()
-
-

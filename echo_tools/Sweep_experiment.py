@@ -28,6 +28,7 @@ class Sweep_experiment():
         self.data_file_type = kwargs.get('data_file_type', 'pkl')
         self.noise_range = kwargs.get('noise_range',None)
         self._flag_baseline_removed = False
+        self._flag_lowpass_filtered = False
 
         if read_data:
             self.read_data()
@@ -47,6 +48,13 @@ class Sweep_experiment():
     @property
     def max_signal(self):
         return(self.combined_Is_Qs.max().max())
+
+    @property
+    def echo_amplitudes(self):
+        amps = pd.DataFrame(index=self.columns, columns=self.signals, dtype=np.float64)
+        for i in zip(self.signals,[self.Is,self.Qs,self.IQs]):
+            amps.loc[:,i[0]] = i[1].apply(np.abs).max()
+        return amps
 
     @property
     def min_signal(self):
@@ -103,6 +111,16 @@ class Sweep_experiment():
             self.Qs.loc[:,col] = np.array(S.data['Q'])
         self._flag_baseline_removed = True
 
+    def lowpass_filter(self,order=2,cutoff=500e3,**kwargs):
+        '''
+        Apply a digital lowpass filter to the data
+        '''
+        for col in self.columns:
+            S = Echo_trace(self.Is.loc[:,col],self.Qs.loc[:,col],noise_range=self.noise_range)
+            S.lowpass_filter(order=order,cutoff=cutoff,**kwargs)
+            self.Is.loc[:,col] = S.data['I'].to_numpy()
+            self.Qs.loc[:,col] = S.data['Q'].to_numpy()
+        self._flag_lowpass_filtered = True
 
     def plot_2D(self,save_name=None,**kwargs):
         '''
@@ -117,8 +135,9 @@ class Sweep_experiment():
 
         for i in zip(axes,[self.Is,self.Qs,self.IQs],self.signals):
             im = i[0].imshow(i[1],extent=self.extent)
-            clb = fig.colorbar(im,ax=i[0],shrink=0.8)
-            clb.ax.set_title('V')
+            if not _flag_axes_supplied:
+                clb = fig.colorbar(im,ax=i[0],shrink=0.8)
+                clb.ax.set_title('V')
             i[0].set_ylabel(r'Time ($\mu$s)')
             i[0].set_xlabel(self.sweep_parameter)
             i[0].set_title(i[2])

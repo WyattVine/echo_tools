@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import scipy as sp
+from scipy import signal
 from .utilities import *
 from .fitting_tools import *
 update_matplot_style()
@@ -65,6 +67,14 @@ class Echo_trace():
     def trim(self,t1,t2):
         '''Trims data between times t1,t2 for cleaning data (e.g. eliminating cavity ringdown)'''
         self.data = self.select_time_range(t1,t2)
+
+    def lowpass_filter(self,order=2,cutoff=500e3):
+        '''Applies digital lowpass filter to trace'''
+
+        filter = sp.signal.butter(N=order,Wn=cutoff,fs=500e6,output='sos')
+        for i in ['I','Q']:
+            self.data[i] = sp.signal.sosfilt(filter,self.data[i])
+        self.data['IQ'] = self.IQ
 
 
     def read_data(self):
