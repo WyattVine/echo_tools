@@ -5,3 +5,4 @@ from .Sweep_experiment import *
 from .T1_measurement import *
 from .Rabi_measurement import *
 from .Cooling_Sweep_experiment import *
+from .Multi_sweep_experiment import *
