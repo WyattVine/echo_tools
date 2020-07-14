@@ -27,13 +27,13 @@ class Multi_sweep_experiment():
         self.sweep_parameter = kwargs.get('sweep_parameter',None)
 
         self.sweeps = {i : Sweep_experiment(data_loc=self.data_loc, save_loc=self.save_loc, sweep_parameter=self.sweep_parameter) for i in sweep_labels}
-        self.data_name_conventions = {i : None for i in sweep_labels}
+        self.data_name_conventions = kwargs.get('data_name_conventions',{i : None for i in sweep_labels})
         self.noise_range = kwargs.get('noise_range', None)
 
 
     @property
     def sweep_labels(self):
-        return self.sweeps.keys()
+        return list(self.sweeps.keys())
 
     @property
     def n_sweeps(self):
@@ -87,7 +87,7 @@ class Multi_sweep_experiment():
         for exp in self.sweeps.values():
             exp.lowpass_filter(order=order,cutoff=cutoff,**kwargs)
 
-    def overlay_traces(self,save_name=None,num_cols=3,legend_loc=0,**kwargs):
+    def plot_traces(self,save_name=None,num_cols=3,legend_loc=0,**kwargs):
 
         fig,axes = generate_axes(shape=(3,num_cols))
         for i in self.sweep_labels:
@@ -101,7 +101,7 @@ class Multi_sweep_experiment():
         else:
             plt.show()
 
-    def compare_2D_plots(self,save_name=None,**kwargs):
+    def plot_2D(self,save_name=None,**kwargs):
 
         fig, axes = generate_axes(shape=(3, self.n_sweeps))
         for i,(label,exp) in enumerate(self.sweeps.items()):

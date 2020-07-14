@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy as sp
 from scipy import signal
+from scipy import fftpack
 from .utilities import *
 from .fitting_tools import *
 update_matplot_style()
@@ -42,6 +43,18 @@ class Echo_trace():
         return(np.sqrt(self.data['I'] ** 2 + self.data['Q'] ** 2))
 
     @property
+    def I(self):
+        return self.data['I']
+
+    @property
+    def Q(self):
+        return self.data['Q']
+
+    @property
+    def time(self):
+        return self.data['time']
+
+    @property
     def dt(self):
         return(self.data['time'].iloc[1] - self.data['time'].iloc[0])
 
@@ -76,6 +89,13 @@ class Echo_trace():
             self.data[i] = sp.signal.sosfilt(filter,self.data[i])
         self.data['IQ'] = self.IQ
 
+    def bandstop_filter(self,center,span,order=2):
+        '''Applies digital lowpass filter to trace'''
+
+        filter = sp.signal.butter(N=order,Wn=[center-span/2,center+span/2],btype='bandstop',fs=500e6,output='sos')
+        for i in ['I','Q']:
+            self.data[i] = sp.signal.sosfilt(filter,self.data[i])
+        self.data['IQ'] = self.IQ
 
     def read_data(self):
         if self.data_file_type == 'pkl':
@@ -85,7 +105,6 @@ class Echo_trace():
             I = pd.read_csv(self.data_loc + self.data_name_convention + '.csv',index_col=0)
             Q = pd.read_csv(self.data_loc + self.data_name_convention.replace('I','Q') + '.csv',index_col=0)
         self._create_DataFrame(I, Q)
-
 
     def _create_DataFrame(self,I,Q):
         self.data = pd.DataFrame(columns=('time', *self.signals),dtype=np.float64)
@@ -97,7 +116,6 @@ class Echo_trace():
             raise TypeError('I and Q must be supplied as pd.Series')
         self.data['IQ'] = self.IQ.fillna(0)
 
-
     def rotate(self,theta):
         '''Rotates the echo trace by theta (radians) in complex plane'''
 
@@ -105,7 +123,6 @@ class Echo_trace():
         self.data['I'] = S.real
         self.data['Q'] = S.imag
         self.data['IQ'] = self.IQ
-
 
     def remove_baseline(self,order=1,**kwargs):
         '''
@@ -118,7 +135,6 @@ class Echo_trace():
         for key,val in self.baseline_fits.items():
             self.data[key] = self.data[key] - np.array([val.function(i,*val.params) for i in self.data['time']])
         self.data['IQ'] = np.sqrt(self.data['I']**2 + self.data['Q']**2)
-
 
     def plot(self,save_name=None,**kwargs):
         '''Plots I, Q and IQ'''
@@ -167,6 +183,37 @@ class Echo_trace():
         else:
             plt.show()
 
+    def fourier_transform(self,plot=True,save_name=None,**kwargs):
+
+        self.fourier_data = pd.DataFrame(index = self.time.index, columns = ['freq','I','Q'])
+        self.fourier_data['freq'] = sp.fftpack.fftfreq(self.fourier_data.shape[0],2e-9)
+        self.fourier_data['I'] = sp.fftpack.fft(self.I.to_numpy())
+        self.fourier_data['Q'] = sp.fftpack.fft(self.Q.to_numpy())
+
+        if plot:
+            self.plot_fourier_transform(save_name=save_name,**kwargs)
+
+    def plot_fourier_transform(self,axes=None,save_name=None):
+
+        _flag_axes_supplied = True
+        if not axes:
+            fig, axes = generate_axes(shape=(2,1))
+            _flag_axes_supplied = False
+
+        for i in zip(axes,('I','Q')):
+            i[0].plot(self.fourier_data['freq']*1E-3,self.fourier_data[i[1]].apply(np.abs))
+            i[0].set_xlabel('Fourier Frequency (KHz)')
+            i[0].set_ylabel('Fourier Amplitude')
+            i[0].set_xlim([0,1000])
+
+        if _flag_axes_supplied:
+            return axes
+        plt.tight_layout()
+        if save_name:
+            plt.savefig(self.save_loc + save_name)
+            plt.close()
+        else:
+            plt.show()
 
     def integrate_echo_with_discriminators(self,std_multiplier=1,**kwargs):
         '''
@@ -231,6 +278,40 @@ class Echo_trace():
             i[0].set_ylim(create_ylim(i[1]))
             if labels[0]:
                 i[0].legend()
+
+        if _flag_axis_supplied:
+            return(axes)
+        plt.tight_layout()
+        if save_name:
+            plt.savefig(self.save_loc + save_name)
+            plt.close()
+        else:
+            plt.show()
+
+    def overlay_traces(self,traces,save_name=None,**kwargs):
+        '''
+        Overlays Echo_trace.plot of the two Echo_trace objects for a direct comparison
+        '''
+
+        labels = kwargs.get('labels',[None for i in range(len(traces) + 1)])
+
+        axes = kwargs.get('axes',None)
+        _flag_axis_supplied = True
+        if not axes:
+            fig,axes = generate_axes(shape=(3,1),figsize=(6,5))
+            _flag_axis_supplied = False
+
+        for i in zip(axes,self.signals):
+            i[0].fill_between(self.data['time'],self.data[i[1]],0,alpha=0.5,label=labels[0])
+            # i[0].set_xlabel(r'Time ($\mu$s)')
+            i[0].set_xticks([])
+            i[0].set_ylabel('{} (V)'.format(i[1]))
+            for n,j in enumerate(traces):
+                i[0].fill_between(j.data['time']-(n+1)*15,j.data[i[1]],0,alpha=0.5,label=labels[n+1])
+
+        if labels[0]:
+            for i in axes:
+                i.legend(loc=2)
 
         if _flag_axis_supplied:
             return(axes)
