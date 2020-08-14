@@ -171,6 +171,26 @@ class Exponential_fit(Fit_1D):
             if kwargs.get('plot_result',False):
                 self.plot_result()
 
+class Double_Exponential_fit(Fit_1D):
+
+    def __init__(self,x,y,**kwargs):
+
+        super().__init__(x,y)
+        self.function = lambda x,a,b,c,d,e: a + b * np.exp(-x/c) + d * np.exp(-x/e)
+        self.descriptor = r'$a+b\times\exp{(x/c)}+d\times\exp{(x/e)}$'
+        self.symbols_list = [r'$a$',r'$b$',r'$c$',r'$d$',r'$e$']
+
+        self.guess = kwargs.get('guess',None)
+        if not self.guess:
+            self.guess = (self.y[0],self.y[-1]-self.y[0],self.x[len(self.x)//3],self.y[-1]-self.y[0],self.x[len(self.x)//2])
+        self.perform_fit(guess = self.guess)
+
+        if not self._flag_fit_error:
+            if kwargs.get('print_result',False):
+                self.print_result()
+            if kwargs.get('plot_result',False):
+                self.plot_result()
+
 
 class T1_fit(Exponential_fit):
 
@@ -181,5 +201,3 @@ class T1_fit(Exponential_fit):
 
         self.descriptor = r'$a+b\times \exp{(-t/T_1)}$'
         self.symbols_list = [r'$a$',r'$b$',r'$T_1$']
-
-

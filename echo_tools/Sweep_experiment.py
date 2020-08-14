@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import scipy as sp
 from scipy import optimize
+import copy
 import matplotlib.pyplot as plt
 from matplotlib.offsetbox import AnchoredText
 import warnings
@@ -29,6 +30,7 @@ class Sweep_experiment():
         self.noise_range = kwargs.get('noise_range',None)
         self._flag_baseline_removed = False
         self._flag_lowpass_filtered = False
+        self._flag_integrated_with_discriminators = False
 
         if read_data:
             self.read_data()
@@ -309,3 +311,17 @@ class Sweep_experiment():
         plt.tight_layout()
         plt.savefig(self.save_loc + 'temperatures.png',dpi=300,bbox_inches='tight')
         plt.close()
+
+class Average_sweep_experiment():
+
+    def __init__(self,reps):
+
+        self.reps = reps
+        self.avg = copy.deepcopy(reps[0])
+        for i in range(1,len(reps)):
+            self.avg.Is += reps[i].Is.copy()
+            self.avg.Qs += reps[i].Qs.copy()
+            # self.avg.integrated_echos += reps[i].integrated_echos.copy()
+        self.avg.Is /= len(reps)
+        self.avg.Qs /= len(reps)
+        # self.avg.integrated_echos /= len(reps)

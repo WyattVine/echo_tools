@@ -21,6 +21,7 @@ class T1_measurement(Sweep_experiment):
 
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
+        self.sweep_parameter = 'Wait Time (ms)'
 
 
     def convert_reps_to_time(self,fixed_delay,rep_time):
@@ -33,7 +34,7 @@ class T1_measurement(Sweep_experiment):
         '''
 
         self.columns = rep_time*self.columns*1e-3 + fixed_delay*1e-3
-        self.sweep_parameter = 'Wait Time (ms)'
+
 
     def fit_integrated_echos(self,signals=('I','Q','IQ'),plot=True,**kwargs):
         '''
