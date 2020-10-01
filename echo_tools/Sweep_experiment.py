@@ -31,6 +31,7 @@ class Sweep_experiment():
         self._flag_baseline_removed = False
         self._flag_lowpass_filtered = False
         self._flag_integrated_with_discriminators = False
+        self.integrated_echos = None
 
         if read_data:
             self.read_data()
@@ -119,6 +120,17 @@ class Sweep_experiment():
             self.Qs.loc[:,col] = np.array(S.data['Q'])
         self._flag_baseline_removed = True
 
+    def rotate_onto_I(self,rough=False):
+
+        self.alignment_angles = pd.Series(index=self.columns,dtype=np.float64)
+        for col in self.columns:
+            S = Echo_trace(self.Is.loc[:,col],self.Qs.loc[:,col])
+            S.noise_range = self.noise_range
+            theta = S.rotate_onto_I(rough=rough)
+            self.Is.loc[:,col] = np.array(S.data['I'])
+            self.Qs.loc[:,col] = np.array(S.data['Q'])
+            self.alignment_angles[col] = theta
+
     def lowpass_filter(self,order=2,cutoff=500e3,**kwargs):
         '''
         Apply a digital lowpass filter to the data
@@ -129,6 +141,18 @@ class Sweep_experiment():
             self.Is.loc[:,col] = S.data['I'].to_numpy()
             self.Qs.loc[:,col] = S.data['Q'].to_numpy()
         self._flag_lowpass_filtered = True
+
+    def fourier_transform(self):
+
+        S = Echo_trace(self.Is.iloc[:,0],self.Qs.iloc[:,0])
+        S.fourier_transform(plot=False)
+        self.Is_fourier = pd.DataFrame(index=S.fourier_data['freq'],columns=self.columns,dtype=np.float64)
+        self.Qs_fourier = pd.DataFrame(index=S.fourier_data['freq'],columns=self.columns,dtype=np.float64)
+        for col in self.columns:
+            S = Echo_trace(self.Is.loc[:,col],self.Qs.loc[:,col])
+            S.fourier_transform(plot=False)
+            self.Is_fourier.loc[:,col] = S.fourier_data['I'].to_numpy()
+            self.Qs_fourier.loc[:,col] = S.fourier_data['Q'].to_numpy()
 
     def plot_2D(self,save_name=None,**kwargs):
         '''
@@ -260,7 +284,6 @@ class Sweep_experiment():
         else:
             plt.show()
 
-
     def plot_traces(self,num_cols=3,save_name=None,**kwargs):
         '''
          1D plots of I, Q and IQ
@@ -312,16 +335,32 @@ class Sweep_experiment():
         plt.savefig(self.save_loc + 'temperatures.png',dpi=300,bbox_inches='tight')
         plt.close()
 
+
+
+
 class Average_sweep_experiment():
 
     def __init__(self,reps):
-
         self.reps = reps
-        self.avg = copy.deepcopy(reps[0])
-        for i in range(1,len(reps)):
-            self.avg.Is += reps[i].Is.copy()
-            self.avg.Qs += reps[i].Qs.copy()
-            # self.avg.integrated_echos += reps[i].integrated_echos.copy()
-        self.avg.Is /= len(reps)
-        self.avg.Qs /= len(reps)
-        # self.avg.integrated_echos /= len(reps)
+        self.nreps = len(reps)
+
+        self.average_reps()
+
+
+    def average_reps(self):
+        self.avg = copy.deepcopy(self.reps[0])
+        for i in range(1,self.nreps):
+            self.avg.Is += self.reps[i].Is.copy()
+            self.avg.Qs += self.reps[i].Qs.copy()
+        self.avg.Is /= self.nreps
+        self.avg.Qs /= self.nreps
+        if not self.avg.integrated_echos is None:
+            self._unify_integrated_echos()
+
+
+    def _unify_integrated_echos(self):
+        for i,j in enumerate(self.reps):
+            j.integrated_echos['rep'] = [i for k in range(len(j.columns))]
+
+        self.integrated_echos = pd.concat([i.integrated_echos for i in self.reps])
+        self.integrated_echos[self.avg.sweep_parameter] = self.integrated_echos.index

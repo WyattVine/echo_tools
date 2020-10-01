@@ -28,3 +28,9 @@ echo_tools/__pycache__/Echo_trace.cpython-38.pyc
 echo_tools/__pycache__/fitting_tools.cpython-38.pyc
 echo_tools/__pycache__/Sweep_experiment.cpython-38.pyc
 echo_tools/__pycache__/T1_measurement.cpython-38.pyc
+*.pyc
+echo_tools/__pycache__/T1_measurement.cpython-38.pyc
+echo_tools/__pycache__/Sweep_experiment.cpython-38.pyc
+echo_tools/__pycache__/fitting_tools.cpython-38.pyc
+echo_tools/__pycache__/Echo_trace.cpython-38.pyc
+echo_tools/__pycache__/__init__.cpython-38.pyc

@@ -191,6 +191,65 @@ class Double_Exponential_fit(Fit_1D):
             if kwargs.get('plot_result',False):
                 self.plot_result()
 
+class Sine_fit(Fit_1D):
+
+    def __init__(self,x,y,**kwargs):
+
+        super().__init__(x,y)
+        self.function = lambda x,a,b: a * np.sin(x - b)
+        self.descriptor = r'$a\times \sin(x - b)$'
+        self.symbols_list = [r'$a$',r'$b$']
+
+        self.guess = kwargs.get('guess',None)
+        if not self.guess:
+            self.guess = (max(self.y),0)
+        self.perform_fit(guess = self.guess)
+
+        if not self._flag_fit_error:
+            if kwargs.get('print_result',False):
+                self.print_result()
+            if kwargs.get('plot_result',False):
+                self.plot_result()
+
+class Sine_normalized_fit(Fit_1D):
+
+    def __init__(self,x,y,**kwargs):
+
+        super().__init__(x,y)
+        self.function = lambda x,a: np.sin(x - a)
+        self.descriptor = r'$\sin(x - a)$'
+        self.symbols_list = [r'$a$']
+
+        self.guess = kwargs.get('guess',None)
+        if not self.guess:
+            self.guess = (0)
+        self.perform_fit(guess = self.guess)
+
+        if not self._flag_fit_error:
+            if kwargs.get('print_result',False):
+                self.print_result()
+            if kwargs.get('plot_result',False):
+                self.plot_result()
+
+class Sine_abs_fit(Fit_1D):
+
+    def __init__(self,x,y,**kwargs):
+
+        super().__init__(x,y)
+        self.function = lambda x,a,b: a*np.abs(np.sin((x - b + np.pi)/2))
+        self.descriptor = r'$a \times |\sin((x - b + \pi)/2)|$'
+        self.symbols_list = [r'$a$',r'$b$']
+
+        self.guess = kwargs.get('guess',None)
+        if not self.guess:
+            self.guess = (y.max(),0)
+        self.perform_fit(guess = self.guess)
+
+        if not self._flag_fit_error:
+            if kwargs.get('print_result',False):
+                self.print_result()
+            if kwargs.get('plot_result',False):
+                self.plot_result()
 
 class T1_fit(Exponential_fit):
 

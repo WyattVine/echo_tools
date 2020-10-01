@@ -51,6 +51,11 @@ class Echo_trace():
         return self.data['Q']
 
     @property
+    def S(self):
+        '''complex signal'''
+        return self.data['I'] + 1j*self.data['Q']
+
+    @property
     def time(self):
         return self.data['time']
 
@@ -82,7 +87,10 @@ class Echo_trace():
         self.data = self.select_time_range(t1,t2)
 
     def lowpass_filter(self,order=2,cutoff=500e3):
-        '''Applies digital lowpass filter to trace'''
+        '''Applies digital lowpass filter to trace
+        order : order of filter
+        cutoff : (Hz)
+        '''
 
         filter = sp.signal.butter(N=order,Wn=cutoff,fs=500e6,output='sos')
         for i in ['I','Q']:
@@ -123,6 +131,38 @@ class Echo_trace():
         self.data['I'] = S.real
         self.data['Q'] = S.imag
         self.data['IQ'] = self.IQ
+
+    def rotate_onto_I(self,rough=False):
+        '''Rotates the echo so it's maximum is aligned on the I quadrature.
+        rough = True : rotates max(|IQ|) onto I (Fast)
+        rough = False : aligns echo by minimizing integral of Q in window defind by self.noise_range (Slow)
+        '''
+
+        theta = -1*np.angle(self.S.iloc[self.S.apply(np.abs).argmax()])
+
+        if rough:
+            self.rotate(theta)
+            return theta
+
+        def _abs_Q_int(phi):
+            '''
+            rotates S by phi radians, calculates integral of Q in window defined by noise range
+            '''
+            idx = (self.data.time[self.data.time > self.noise_range[1]].index[0],self.data.time[self.data.time < self.noise_range[2]].index[-1])
+            S_rot = np.exp(1j*phi)*self.S.loc[idx[0]:idx[1]]
+            a = np.abs(S_rot.apply(np.imag).sum())
+            return a
+
+        minimize_result = sp.optimize.minimize(_abs_Q_int,x0=(theta),bounds=[(theta-0.3,theta+0.3)],tol=1e-1)
+        if not minimize_result.success:
+            self.rotate(theta)
+            self.alignment_angle = theta
+            print('Polishing failed. Only rough alignment applied.')
+        else:
+            self.rotate(minimize_result.x[0])
+            self.alignment_angle = minimize_result.x[0]
+        return self.alignment_angle
+
 
     def remove_baseline(self,order=1,**kwargs):
         '''
@@ -203,7 +243,7 @@ class Echo_trace():
         for i in zip(axes,('I','Q')):
             i[0].plot(self.fourier_data['freq']*1E-3,self.fourier_data[i[1]].apply(np.abs))
             i[0].set_xlabel('Fourier Frequency (KHz)')
-            i[0].set_ylabel('Fourier Amplitude')
+            i[0].set_ylabel('{} Fourier Amplitude'.format(i[1]))
             i[0].set_xlim([0,1000])
 
         if _flag_axes_supplied:
