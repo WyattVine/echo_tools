@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import scipy as sp
 from scipy import signal
 from scipy import fftpack
+import sklearn.decomposition
 from .utilities import *
 from .fitting_tools import *
 update_matplot_style()
@@ -162,6 +163,16 @@ class Echo_trace():
             self.rotate(minimize_result.x[0])
             self.alignment_angle = minimize_result.x[0]
         return self.alignment_angle
+
+    def rotate_onto_I_pca(self):
+        '''Uses principle component analysis to quickly identify axis of maximum variance in echo trace, and aligns
+        along I'''
+
+        pca = sklearn.decomposition.PCA(n_components=2)
+        I,Q = zip(*pca.fit_transform(self.data[['I','Q']]))
+        self.data.I = I
+        self.data.Q = Q
+        self.data.IQ = self.IQ
 
 
     def remove_baseline(self,order=1,**kwargs):
