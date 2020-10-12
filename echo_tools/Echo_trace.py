@@ -76,6 +76,10 @@ class Echo_trace():
     def noise_data(self):
         return(pd.concat((self.select_time_range(*self.noise_range[:2]), self.select_time_range(*self.noise_range[2:]))))
 
+    @property
+    def signal_data(self):
+        return(self.select_time_range(*self.noise_range[1:3]))
+
     def select_time_range(self,ta,tb):
         return(self.data[(self.data['time'] >= ta) & (self.data['time'] <= tb)].copy())
 
@@ -86,6 +90,7 @@ class Echo_trace():
     def trim(self,t1,t2):
         '''Trims data between times t1,t2 for cleaning data (e.g. eliminating cavity ringdown)'''
         self.data = self.select_time_range(t1,t2)
+        self.data.index = range(self.data.shape[0])
 
     def lowpass_filter(self,order=2,cutoff=500e3):
         '''Applies digital lowpass filter to trace
@@ -166,14 +171,16 @@ class Echo_trace():
 
     def rotate_onto_I_pca(self):
         '''Uses principle component analysis to quickly identify axis of maximum variance in echo trace, and aligns
-        along I'''
+        along I.'''
 
+        self.data.I = self.data.I - self.data.I.mean()
+        self.data.Q = self.data.Q - self.data.Q.mean()
+
+        Xin = np.stack((self.data.I[::200],self.data.Q[::200]),axis=-1)
         pca = sklearn.decomposition.PCA(n_components=2)
-        I,Q = zip(*pca.fit_transform(self.data[['I','Q']]))
-        self.data.I = I
-        self.data.Q = Q
-        self.data.IQ = self.IQ
-
+        pca.fit(Xin)
+        principle_axis = pca.components_[0,0] + 1j*pca.components_[1,0]
+        self.rotate(-1*np.angle(principle_axis))
 
     def remove_baseline(self,order=1,**kwargs):
         '''
