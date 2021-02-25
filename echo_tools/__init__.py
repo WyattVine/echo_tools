@@ -6,3 +6,4 @@ from .T1_measurement import *
 from .Rabi_measurement import *
 from .Cooling_Sweep_experiment import *
 from .Multi_sweep_experiment import *
+from .Self_oscillation_experiment import *

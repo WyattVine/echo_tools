@@ -113,13 +113,32 @@ class Linear_fit(Fit_1D):
                 self.plot_result()
 
 
+
 class Quadratic_fit(Fit_1D):
 
     def __init__(self,x,y,**kwargs):
 
         super().__init__(x, y)
+        self.function = lambda x, a, b, c: a + b*(x - c)**2
+        self.descriptor = r'$a + b \times (x-c)^2$'
+        self.symbols_list = [r'$a$', r'$b$', r'$c$']
+
+        self.guess = kwargs.get('guess', None)
+        self.perform_fit(guess=self.guess)
+
+        if not self._flag_fit_error:
+            if kwargs.get('print_result', False):
+                self.print_result()
+            if kwargs.get('plot_result', False):
+                self.plot_result()
+
+class Poly2_fit(Fit_1D):
+
+    def __init__(self,x,y,**kwargs):
+
+        super().__init__(x, y)
         self.function = lambda x, a, b, c, d: a + b*(x - c) + d*(x - c)**2
-        self.descriptor = r'$a+b\times x$'
+        self.descriptor = r'$a+b\times (x-c) + d\times(x-c)**2$'
         self.symbols_list = [r'$a$', r'$b$', r'$c$', r'$d$']
 
         self.guess = kwargs.get('guess', None)
@@ -131,8 +150,7 @@ class Quadratic_fit(Fit_1D):
             if kwargs.get('plot_result', False):
                 self.plot_result()
 
-
-class Cubic_fit(Fit_1D):
+class Poly3_fit(Fit_1D):
 
     def __init__(self,x,y,**kwargs):
 
@@ -163,6 +181,46 @@ class Exponential_fit(Fit_1D):
         self.guess = kwargs.get('guess',None)
         if not self.guess:
             self.guess = (self.y[0],self.y[-1]-self.y[0],self.x[len(self.x)//3])
+        self.perform_fit(guess = self.guess)
+
+        if not self._flag_fit_error:
+            if kwargs.get('print_result',False):
+                self.print_result()
+            if kwargs.get('plot_result',False):
+                self.plot_result()
+
+class Exponential_fit2(Fit_1D):
+
+    def __init__(self,x,y,**kwargs):
+
+        super().__init__(x,y)
+        self.function = lambda x,a,b: a*(1 - np.exp(-x/b))
+        self.descriptor = r'$a \times (1 - \exp{(x/a)})$'
+        self.symbols_list = [r'$a$',r'$b$']
+
+        self.guess = kwargs.get('guess',None)
+        if not self.guess:
+            self.guess = (self.y.max(),self.x[len(self.x)//3])
+        self.perform_fit(guess = self.guess)
+
+        if not self._flag_fit_error:
+            if kwargs.get('print_result',False):
+                self.print_result()
+            if kwargs.get('plot_result',False):
+                self.plot_result()
+
+class Richards_curve_fit(Fit_1D):
+
+    def __init__(self,x,y,**kwargs):
+
+        super().__init__(x,y)
+        self.function = lambda x,a,b,c,d: a*(1 + d*np.exp(-b*(x-c)))**(-1/d)
+        self.descriptor = r'$a \times [1 + d\exp{(-b*(x-c))}]^(-1/d)$'
+        self.symbols_list = [r'$a$',r'$b$',r'$c$',r'$d$',]
+
+        self.guess = kwargs.get('guess',None)
+        if not self.guess:
+            self.guess = (self.y.max(),0.1,self.x[len(self.x)//5],1)
         self.perform_fit(guess = self.guess)
 
         if not self._flag_fit_error:
@@ -251,6 +309,26 @@ class Sine_abs_fit(Fit_1D):
             if kwargs.get('plot_result',False):
                 self.plot_result()
 
+class Maccas_fit(Fit_1D):
+
+    def __init__(self,x,y,**kwargs):
+
+        super().__init__(x,y)
+        self.function = lambda x,a,b,c: a + b*20*np.log10(np.abs(np.sin((x - c)/2)))
+        self.descriptor = r'$20 \times \log_{10}(a \times |\sin((x - b)/2)|)$'
+        self.symbols_list = [r'$a$',r'$b$',r'$c$']
+
+        self.guess = kwargs.get('guess',None)
+        if not self.guess:
+            self.guess = (0,1,0)
+        self.perform_fit(guess = self.guess)
+
+        if not self._flag_fit_error:
+            if kwargs.get('print_result',False):
+                self.print_result()
+            if kwargs.get('plot_result',False):
+                self.plot_result()
+
 class T1_fit(Exponential_fit):
 
     '''Note that x and y are backwards with respect to most classes.
@@ -260,3 +338,80 @@ class T1_fit(Exponential_fit):
 
         self.descriptor = r'$a+b\times \exp{(-t/T_1)}$'
         self.symbols_list = [r'$a$',r'$b$',r'$T_1$']
+
+class Rayleigh_fit(Fit_1D):
+
+    def __init__(self,x,y,**kwargs):
+
+        super().__init__(x,y)
+
+        a = y.sum() * (x[1] - x[0]) #a is a normalization constant and is not fit.
+
+        self.function = lambda x,sig: a * x/sig**2 * np.exp(-0.5*(x/sig)**2)
+        self.descriptor = r'$a \times x/\sigma^2 \times \exp{(-(x/\sigma)^2/2)}$'
+        self.symbols_list = [r'$\sigma$',r'$a$']
+
+        self.guess = kwargs.get('guess',None)
+        if not self.guess:
+            self.guess = (self.x.max()/10)
+        self.perform_fit(guess = self.guess)
+
+        '''update params and covariance with normalization constant for full features'''
+        self.params = np.append(self.params,a)
+        self.covariance = np.append(self.covariance,[0,0,0]).reshape(2,2)
+
+        if not self._flag_fit_error:
+            if kwargs.get('print_result',False):
+                self.print_result()
+            if kwargs.get('plot_result',False):
+                self.plot_result()
+
+class Gaussian_fit(Fit_1D):
+
+    def __init__(self,x,y,**kwargs):
+
+        super().__init__(x,y)
+
+        a = y.sum() * (x[1] - x[0]) #a is a normalization constant and is not fit.
+
+        self.function = lambda x,mu,sig: a/(sig*np.sqrt(2*np.pi)) * np.exp(-0.5*((x-mu)/sig)**2)
+        self.descriptor = r'$a/(\sigma * \sqrt{2*\pi}) \times \exp{(-((x-\mu)/\sigma)^2/2)}$'
+        self.symbols_list = [r'$\mu$',r'$\sigma$',r'$a$']
+
+        self.guess = kwargs.get('guess',None)
+        if not self.guess:
+            self.guess = (self.x[self.y.argmax()],np.ptp(self.x)/5)
+        self.perform_fit(guess = self.guess)
+
+        '''update params and covariance with normalization constant for full features'''
+        self.params = np.append(self.params,a)
+        c = np.zeros(9).reshape(3,3)
+        c[:2,:2] = self.covariance
+        self.covariance = c
+
+        if not self._flag_fit_error:
+            if kwargs.get('print_result',False):
+                self.print_result()
+            if kwargs.get('plot_result',False):
+                self.plot_result()
+
+
+class Lorentzian_fit(Fit_1D):
+
+    def __init__(self,x,y,**kwargs):
+
+        super().__init__(x,y)
+        self.function = lambda x,a,b,c: a * (b / ((x-c)**2 + b**2))
+        self.descriptor = r'test'
+        self.symbols_list = [r'$a$',r'$b$',r'$c$']
+
+        self.guess = kwargs.get('guess',None)
+        if not self.guess:
+            self.guess = (max(self.y),1,1,0)
+        self.perform_fit(guess = self.guess)
+
+        if not self._flag_fit_error:
+            if kwargs.get('print_result',False):
+                self.print_result()
+            if kwargs.get('plot_result',False):
+                self.plot_result()

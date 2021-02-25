@@ -45,6 +45,14 @@ class Sweep_experiment():
         return((self.Is ** 2 + self.Qs ** 2).apply(np.sqrt))
 
     @property
+    def IQs_complex(self):
+        return self.Is + 1j*self.Qs
+
+    # @property
+    # def mean_trace(self):
+    #     return Echo_trace(I=self.Is.mean(axis=1),Q=self.Qs.mean(axis=1),save_loc=self.save_loc)
+
+    @property
     def combined_Is_Qs(self):
         return(pd.concat((self.Is, self.Qs)).fillna(0))
 
@@ -183,7 +191,6 @@ class Sweep_experiment():
         else:
             plt.show()
 
-
     def integrate_echos(self,plot=True,with_discriminators=False,std_multiplier=1,**kwargs):
         ''''
         Integrate I, Q, and IQ signals by creating an Echo_trace for each column
@@ -217,7 +224,6 @@ class Sweep_experiment():
         if plot:
             self.plot_integrated_echos(**kwargs)
 
-
     def plot_integrated_echos(self,save_name=None,**kwargs):
         '''
         Plots integrated echos and their uncertainties
@@ -248,7 +254,6 @@ class Sweep_experiment():
             plt.close()
         else:
             plt.show()
-
 
     def plot_echo_amplitudes(self,save_name=None,**kwargs):
         '''
@@ -335,6 +340,12 @@ class Sweep_experiment():
         plt.savefig(self.save_loc + 'temperatures.png',dpi=300,bbox_inches='tight')
         plt.close()
 
+    def make_trace(self,col_idx):
+
+        if col_idx == 'mean':
+            return Echo_trace(self.Is.mean(axis=1),self.Qs.mean(axis=1),save_loc=self.save_loc)
+        else:
+            return Echo_trace(self.Is.iloc[:,col_idx],self.Qs.iloc[:,col_idx],save_loc=self.save_loc)
 
 
 

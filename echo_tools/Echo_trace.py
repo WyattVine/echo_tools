@@ -98,7 +98,7 @@ class Echo_trace():
         cutoff : (Hz)
         '''
 
-        filter = sp.signal.butter(N=order,Wn=cutoff,fs=500e6,output='sos')
+        filter = sp.signal.butter(N=order,Wn=cutoff,fs=round(1/(self.dt*1e-6)),output='sos')
         for i in ['I','Q']:
             self.data[i] = sp.signal.sosfilt(filter,self.data[i])
         self.data['IQ'] = self.IQ
@@ -169,18 +169,27 @@ class Echo_trace():
             self.alignment_angle = minimize_result.x[0]
         return self.alignment_angle
 
-    def rotate_onto_I_pca(self):
+    def rotate_onto_I_pca(self,debug=False):
         '''Uses principle component analysis to quickly identify axis of maximum variance in echo trace, and aligns
-        along I.'''
+        along I. inconsistent/buggy'''
 
-        self.data.I = self.data.I - self.data.I.mean()
-        self.data.Q = self.data.Q - self.data.Q.mean()
+        '''reduce size, center, normalize'''
+        i = self.data.I[::200] - self.data.I[::200].mean()
+        i /= i.apply(np.abs).max()
+        q = self.data.Q[::200] - self.data.Q[::200].mean()
+        q /= q.apply(np.abs).max()
 
-        Xin = np.stack((self.data.I[::200],self.data.Q[::200]),axis=-1)
+        X = np.stack((i,q),axis=-1)
         pca = sklearn.decomposition.PCA(n_components=2)
-        pca.fit(Xin)
+        pca.fit(X)
         principle_axis = pca.components_[0,0] + 1j*pca.components_[1,0]
         self.rotate(-1*np.angle(principle_axis))
+
+        if debug:
+            plt.plot(X[:,0],X[:,1])
+            plt.plot([0,pca.components_[0,0]],[0,pca.components_[1,0]])
+            plt.show()
+            return(pca)
 
     def remove_baseline(self,order=1,**kwargs):
         '''
@@ -228,7 +237,7 @@ class Echo_trace():
             ax3.plot(self.data['time'],self.data['IQ'],label=label,lw=1)
             ax3.plot(xlim, [0,0], c='black', alpha=0.3)
             ax3.set_xlim(xlim)
-            ax3.set_ylim([-0.05,1.05*self.data['IQ'].max()])
+            ax3.set_ylim([0,1.05*self.data['IQ'].max()])
             ax3.set_xlabel(r'Time ($\mu$s)')
             ax3.set_ylabel('|IQ| (V)')
 
