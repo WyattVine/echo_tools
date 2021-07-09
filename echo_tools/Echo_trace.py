@@ -197,7 +197,7 @@ class Echo_trace():
         order: order of polynomial used to fit baseline. (1, 2 or 3)
         '''
 
-        fit_classes = {1: Linear_fit, 2: Quadratic_fit, 3: Cubic_fit}
+        fit_classes = {1: Linear_fit, 2: Quadratic_fit}#, 3: Cubic_fit}
         self.baseline_fits = {i : fit_classes[order](self.noise_data['time'],self.noise_data[i],**kwargs) for i in ['I','Q']}
         for key,val in self.baseline_fits.items():
             self.data[key] = self.data[key] - np.array([val.function(i,*val.params) for i in self.data['time']])

@@ -27,10 +27,10 @@ class Self_oscillation_experiment(Sweep_experiment):
 
     @property
     def nshots(self):
-        return self.Is.columns[-1]
+        return self.Is.shape[1]
 
     def remove_baseline_method2(self):
-        '''an additional method to remove baseline. Required for self-oscillation experiments because acquisitoin might be stopped while
+        '''an additional method to remove baseline. Required for self-oscillation experiments because acquisition might be stopped while
         resonator is still self-oscillating, so cannot remove baseline with 'echo' centered'''
         self.Is -= self.Is.loc[self.noise_range[0]:self.noise_range[-1],:].mean().mean()
         self.Qs -= self.Qs.loc[self.noise_range[0]:self.noise_range[-1],:].mean().mean()
@@ -94,17 +94,14 @@ class Self_oscillation_experiment(Sweep_experiment):
         Shifts a thresholded dataframe by 1 step to identify transitions between quiet and self-oscillating states.
         df: a thresholded dataframe. i.e. a series of traces that have been processed via threshold_assign()'''
         diff = self.IQ_th.diff().iloc[1:,:]
-        self.transitions['up_full'] = diff.where(diff==1,0)
-        self.transitions['down_full'] = diff.where(diff==-1,0)
-        self.transitions['up_vs_time'] = self.transitions['up_full'].sum(axis=1)
-        self.transitions['down_vs_time'] = self.transitions['down_full'].sum(axis=1)
-        self.transitions['up_vs_shot'] = self.transitions['up_full'].sum(axis=0)
-        self.transitions['down_vs_shot'] = self.transitions['down_full'].sum(axis=0)
-        self._first_transition_up()
-
-    def _first_transition_up(self):
-        t = self.transitions['up_full'].where(self.transitions['up_full'] > 0).idxmax().dropna().value_counts().astype(np.int32) #finds and counts number of transitions at each time step
-        self.transitions['up_first'] = pd.Series(index=self.transitions['up_full'].index,dtype=np.int32).add(t,fill_value=0).astype(np.int32)
+        self.transitions['up_full'] = diff.where(diff==1,0) #full record of transitions from quiet to SO state
+        self.transitions['down_full'] = diff.where(diff==-1,0) #full record of transitions from SO to quiet state
+        self.transitions['up_vs_time'] = self.transitions['up_full'].sum(axis=1) #count of transitions from quiet to SO state vs time
+        self.transitions['down_vs_time'] = self.transitions['down_full'].sum(axis=1) #count of transitions from SO to quiet state vs time
+        self.transitions['up_vs_shot'] = self.transitions['up_full'].sum(axis=0) #count of transitions from quiet to SO state vs shot (i.e. column)
+        self.transitions['down_vs_shot'] = self.transitions['down_full'].sum(axis=0) #count of transitions from SO to quiet state vs shot (i.e. column)
+        self.transitions['shot_vs_time'] = self.transitions['up_full'].where(self.transitions['up_full'] > 0).idxmax().dropna() #records time of transition only if a transition from quiet to SO occurs
+        self.transitions['shot_vs_time_down'] = self.transitions['down_full'].where(self.transitions['down_full'] < 0).idxmin().dropna() #records time of transition only if a transition from SO to quiet occurs
 
     def plot_IQ_shots(self,save_name=None,**kwargs):
 

@@ -209,6 +209,66 @@ class Exponential_fit2(Fit_1D):
             if kwargs.get('plot_result',False):
                 self.plot_result()
 
+class Exponential_fit3(Fit_1D):
+
+    def __init__(self,x,y,**kwargs):
+
+        super().__init__(x,y)
+        self.function = lambda x,a,b,c,d: a*np.exp(-(x-b)/c) + d
+        self.descriptor = r'$a \times \exp{-(x-b)/c} + d$'
+        self.symbols_list = [r'$a$',r'$b$',r'$c$',r'$d$']
+
+        self.guess = kwargs.get('guess',None)
+        if not self.guess:
+            self.guess = (self.y.ptp(),self.x[0],self.x[len(self.x)//3] - self.x[0],self.y.min())
+        self.perform_fit(guess = self.guess)
+
+        if not self._flag_fit_error:
+            if kwargs.get('print_result',False):
+                self.print_result()
+            if kwargs.get('plot_result',False):
+                self.plot_result()
+
+class Exponential_fit4(Fit_1D):
+
+    def __init__(self,x,y,**kwargs):
+
+        super().__init__(x,y)
+        self.function = lambda x,a,c,d,e: a*np.exp(-(x/c)**d) + e
+        self.descriptor = r'$a \times \exp{-(x/c)**d} + e$'
+        self.symbols_list = [r'$a$',r'$c$',r'$d$',r'$e$']
+
+        self.guess = kwargs.get('guess',None)
+        if not self.guess:
+            self.guess = (self.y.ptp(),self.x[0],self.x[len(self.x)//3] - self.x[0],1,self.y.min())
+        self.perform_fit(guess = self.guess)
+
+        if not self._flag_fit_error:
+            if kwargs.get('print_result',False):
+                self.print_result()
+            if kwargs.get('plot_result',False):
+                self.plot_result()
+
+class Exponential_fit5(Fit_1D):
+
+    def __init__(self,x,y,**kwargs):
+
+        super().__init__(x,y)
+        self.function = lambda x,a,b: np.exp(-(x/a)**b)
+        self.descriptor = r'$\exp{-(x/a)**b}$'
+        self.symbols_list = [r'$a$',r'$b$']
+
+        self.guess = kwargs.get('guess',None)
+        if not self.guess:
+            self.guess = (self.x[len(self.x)//3] - self.x[0],2)
+        self.perform_fit(guess = self.guess)
+
+        if not self._flag_fit_error:
+            if kwargs.get('print_result',False):
+                self.print_result()
+            if kwargs.get('plot_result',False):
+                self.plot_result()
+
 class Richards_curve_fit(Fit_1D):
 
     def __init__(self,x,y,**kwargs):
