@@ -175,7 +175,7 @@ class Exponential_fit(Fit_1D):
 
         super().__init__(x,y)
         self.function = lambda x,a,b,c: a + b * np.exp(-x/c)
-        self.descriptor = r'$a+b\times \exp{(x/c)}$'
+        self.descriptor = r'$a+b\times \exp{(-x/c)}$'
         self.symbols_list = [r'$a$',r'$b$',r'$c$']
 
         self.guess = kwargs.get('guess',None)
@@ -375,6 +375,26 @@ class Maccas_fit(Fit_1D):
 
         super().__init__(x,y)
         self.function = lambda x,a,b,c: a + b*20*np.log10(np.abs(np.sin((x - c)/2)))
+        self.descriptor = r'$20 \times \log_{10}(a \times |\sin((x - b)/2)|)$'
+        self.symbols_list = [r'$a$',r'$b$',r'$c$']
+
+        self.guess = kwargs.get('guess',None)
+        if not self.guess:
+            self.guess = (0,1,0)
+        self.perform_fit(guess = self.guess)
+
+        if not self._flag_fit_error:
+            if kwargs.get('print_result',False):
+                self.print_result()
+            if kwargs.get('plot_result',False):
+                self.plot_result()
+
+class Maccas_fit2(Fit_1D):
+
+    def __init__(self,x,y,**kwargs):
+
+        super().__init__(x,y)
+        self.function = lambda x,a,b,c: a + b*np.abs(np.sin((x - c)/2))
         self.descriptor = r'$20 \times \log_{10}(a \times |\sin((x - b)/2)|)$'
         self.symbols_list = [r'$a$',r'$b$',r'$c$']
 

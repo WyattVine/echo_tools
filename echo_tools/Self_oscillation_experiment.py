@@ -99,6 +99,7 @@ class Self_oscillation_experiment(Sweep_experiment):
         self.transitions['up_vs_time'] = self.transitions['up_full'].sum(axis=1) #count of transitions from quiet to SO state vs time
         self.transitions['down_vs_time'] = self.transitions['down_full'].sum(axis=1) #count of transitions from SO to quiet state vs time
         self.transitions['up_vs_shot'] = self.transitions['up_full'].sum(axis=0) #count of transitions from quiet to SO state vs shot (i.e. column)
+        self.transitions['up_vs_shot_once'] = (self.transitions['up_full'].sum(axis=0)>0.5)*1 #count of transitions from quiet to SO state vs shot (i.e. column), allow one count per shot
         self.transitions['down_vs_shot'] = self.transitions['down_full'].sum(axis=0) #count of transitions from SO to quiet state vs shot (i.e. column)
         self.transitions['shot_vs_time'] = self.transitions['up_full'].where(self.transitions['up_full'] > 0).idxmax().dropna() #records time of transition only if a transition from quiet to SO occurs
         self.transitions['shot_vs_time_down'] = self.transitions['down_full'].where(self.transitions['down_full'] < 0).idxmin().dropna() #records time of transition only if a transition from SO to quiet occurs
