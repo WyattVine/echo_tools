@@ -76,9 +76,11 @@ class Self_oscillation_experiment(Sweep_experiment):
             return(axes)
         plt.tight_layout()
         if save_name:
+            plt.title(self.save_loc[-24:-10]) # added by AK 14/12-2021
             plt.savefig(self.save_loc + save_name)
             plt.close()
         else:
+            plt.title(self.save_loc[-24:-10]) # added by AK 14/12-2021
             plt.show()
 
     def IQ_threshold_assign(self,threshold):
