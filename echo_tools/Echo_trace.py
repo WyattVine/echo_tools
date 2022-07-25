@@ -253,7 +253,7 @@ class Echo_trace():
     def fourier_transform(self,plot=True,save_name=None,**kwargs):
 
         self.fourier_data = pd.DataFrame(index = self.time.index, columns = ['freq','I','Q'])
-        self.fourier_data['freq'] = sp.fftpack.fftfreq(self.fourier_data.shape[0],2e-9)
+        self.fourier_data['freq'] = sp.fftpack.fftfreq(self.fourier_data.shape[0],self.dt*1e-6)
         self.fourier_data['I'] = sp.fftpack.fft(self.I.to_numpy())
         self.fourier_data['Q'] = sp.fftpack.fft(self.Q.to_numpy())
 
