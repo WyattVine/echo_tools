@@ -456,18 +456,20 @@ class Gaussian_fit(Fit_1D):
                 self.plot_result()
 
 
+
+
 class Lorentzian_fit(Fit_1D):
 
     def __init__(self,x,y,**kwargs):
 
         super().__init__(x,y)
-        self.function = lambda x,a,b,c: a * (b / ((x-c)**2 + b**2))
-        self.descriptor = r'test'
-        self.symbols_list = [r'$a$',r'$b$',r'$c$']
+        self.function = lambda x,a,b,c,d: a * (b / ((x-c)**2 + b**2)) + d
+        self.descriptor = r'$a * \frac{b}{(x-c)^2 + b^2} + d$'
+        self.symbols_list = [r'$a$',r'$b$',r'$c$',r'$d$']
 
         self.guess = kwargs.get('guess',None)
         if not self.guess:
-            self.guess = (max(self.y),1,1,0)
+            self.guess = (max(self.y),1,1,0,0)
         self.perform_fit(guess = self.guess)
 
         if not self._flag_fit_error:

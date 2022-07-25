@@ -103,6 +103,9 @@ class Self_oscillation_experiment(Sweep_experiment):
         self.transitions['shot_vs_time'] = self.transitions['up_full'].where(self.transitions['up_full'] > 0).idxmax().dropna() #records time of transition only if a transition from quiet to SO occurs
         self.transitions['shot_vs_time_down'] = self.transitions['down_full'].where(self.transitions['down_full'] < 0).idxmin().dropna() #records time of transition only if a transition from SO to quiet occurs
 
+        transitions_idxmax = self.transitions['up_full'].idxmax()
+        self.transitions['up_first'] = transitions_idxmax[transitions_idxmax > self.time[1]] #the first timestep when transitions from quiet to SO (i.e. doesn't double count)
+
     def plot_IQ_shots(self,save_name=None,**kwargs):
 
         axes = kwargs.get('axes', None)
@@ -127,3 +130,12 @@ class Self_oscillation_experiment(Sweep_experiment):
             plt.close()
         else:
             plt.show()
+
+    def plot_SO_traces(self):
+        '''plots all (but only) the shots where the device transitions from quiet to SO state, as defined from IQ-th'''
+
+        for shot in self.transitions['up_first'].index:
+            plt.plot(self.IQs.iloc[:,shot],alpha=0.1)
+        plt.xlabel('Time')
+        plt.ylabel('|IQ|')
+        plt.show()
