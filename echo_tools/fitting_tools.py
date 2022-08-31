@@ -175,7 +175,7 @@ class Exponential_fit(Fit_1D):
 
         super().__init__(x,y)
         self.function = lambda x,a,b,c: a + b * np.exp(-x/c)
-        self.descriptor = r'$a+b\times \exp{(x/c)}$'
+        self.descriptor = r'$a+b\times \exp{(-x/c)}$'
         self.symbols_list = [r'$a$',r'$b$',r'$c$']
 
         self.guess = kwargs.get('guess',None)
@@ -201,6 +201,106 @@ class Exponential_fit2(Fit_1D):
         self.guess = kwargs.get('guess',None)
         if not self.guess:
             self.guess = (self.y.max(),self.x[len(self.x)//3])
+        self.perform_fit(guess = self.guess)
+
+        if not self._flag_fit_error:
+            if kwargs.get('print_result',False):
+                self.print_result()
+            if kwargs.get('plot_result',False):
+                self.plot_result()
+
+class Exponential_fit3(Fit_1D):
+
+    def __init__(self,x,y,**kwargs):
+
+        super().__init__(x,y)
+        self.function = lambda x,a,b,c,d: a*np.exp(-(x-b)/c) + d
+        self.descriptor = r'$a \times \exp{-(x-b)/c} + d$'
+        self.symbols_list = [r'$a$',r'$b$',r'$c$',r'$d$']
+
+        self.guess = kwargs.get('guess',None)
+        if not self.guess:
+            self.guess = (self.y.ptp(),self.x[0],self.x[len(self.x)//3] - self.x[0],self.y.min())
+        self.perform_fit(guess = self.guess)
+
+        if not self._flag_fit_error:
+            if kwargs.get('print_result',False):
+                self.print_result()
+            if kwargs.get('plot_result',False):
+                self.plot_result()
+
+class Exponential_fit4(Fit_1D):
+
+    def __init__(self,x,y,**kwargs):
+
+        super().__init__(x,y)
+        self.function = lambda x,a,c,d,e: a*np.exp(-(x/c)**d) + e
+        self.descriptor = r'$a \times \exp{-(x/c)**d} + e$'
+        self.symbols_list = [r'$a$',r'$c$',r'$d$',r'$e$']
+
+        self.guess = kwargs.get('guess',None)
+        if not self.guess:
+            self.guess = (self.y.ptp(),self.x[0],self.x[len(self.x)//3] - self.x[0],1,self.y.min())
+        self.perform_fit(guess = self.guess)
+
+        if not self._flag_fit_error:
+            if kwargs.get('print_result',False):
+                self.print_result()
+            if kwargs.get('plot_result',False):
+                self.plot_result()
+
+class Exponential_fit5(Fit_1D):
+
+    def __init__(self,x,y,**kwargs):
+
+        super().__init__(x,y)
+        self.function = lambda x,a,b: np.exp(-(x/a)**b)
+        self.descriptor = r'$\exp{-(x/a)**b}$'
+        self.symbols_list = [r'$a$',r'$b$']
+
+        self.guess = kwargs.get('guess',None)
+        if not self.guess:
+            self.guess = (self.x[len(self.x)//3] - self.x[0],2)
+        self.perform_fit(guess = self.guess)
+
+        if not self._flag_fit_error:
+            if kwargs.get('print_result',False):
+                self.print_result()
+            if kwargs.get('plot_result',False):
+                self.plot_result()
+
+class Exponential_fit6(Fit_1D):
+
+    def __init__(self,x,y,**kwargs):
+
+        super().__init__(x,y)
+        self.function = lambda x,a,b: a*np.exp(-x/b)
+        self.descriptor = r'$a*\exp{-x/a}$'
+        self.symbols_list = [r'$a$',r'$b$']
+
+        self.guess = kwargs.get('guess',None)
+        if not self.guess:
+            self.guess = (1,self.x[len(self.x)//3] - self.x[0])
+        self.perform_fit(guess = self.guess)
+
+        if not self._flag_fit_error:
+            if kwargs.get('print_result',False):
+                self.print_result()
+            if kwargs.get('plot_result',False):
+                self.plot_result()
+
+class Exponential_fit7(Fit_1D):
+
+    def __init__(self,x,y,**kwargs):
+
+        super().__init__(x,y)
+        self.function = lambda x,a: np.exp(-x/a)
+        self.descriptor = r'$\exp{-x/a}$'
+        self.symbols_list = [r'$a$']
+
+        self.guess = kwargs.get('guess',None)
+        if not self.guess:
+            self.guess = (self.x[len(self.x)//3] - self.x[0])
         self.perform_fit(guess = self.guess)
 
         if not self._flag_fit_error:
@@ -269,6 +369,46 @@ class Sine_fit(Fit_1D):
             if kwargs.get('plot_result',False):
                 self.plot_result()
 
+class Sine_fit2(Fit_1D):
+
+    def __init__(self,x,y,**kwargs):
+
+        super().__init__(x,y)
+        self.function = lambda x,a: a * np.sin(x)
+        self.descriptor = r'$a\times \sin(x)$'
+        self.symbols_list = [r'$a$']
+
+        self.guess = kwargs.get('guess',None)
+        if not self.guess:
+            self.guess = (max(self.y))
+        self.perform_fit(guess = self.guess)
+
+        if not self._flag_fit_error:
+            if kwargs.get('print_result',False):
+                self.print_result()
+            if kwargs.get('plot_result',False):
+                self.plot_result()
+
+class Sine_fit3(Fit_1D):
+
+    def __init__(self,x,y,**kwargs):
+
+        super().__init__(x,y)
+        self.function = lambda x,a,b: a * np.sin(x) + b
+        self.descriptor = r'$a\times \sin(x) + b$'
+        self.symbols_list = [r'$a$',r'$b$']
+
+        self.guess = kwargs.get('guess',None)
+        if not self.guess:
+            self.guess = (max(self.y)-min(self.y),min(self.y))
+        self.perform_fit(guess = self.guess)
+
+        if not self._flag_fit_error:
+            if kwargs.get('print_result',False):
+                self.print_result()
+            if kwargs.get('plot_result',False):
+                self.plot_result()
+
 class Sine_normalized_fit(Fit_1D):
 
     def __init__(self,x,y,**kwargs):
@@ -309,6 +449,26 @@ class Sine_abs_fit(Fit_1D):
             if kwargs.get('plot_result',False):
                 self.plot_result()
 
+class Sine_abs_fit2(Fit_1D):
+
+    def __init__(self,x,y,**kwargs):
+
+        super().__init__(x,y)
+        self.function = lambda x,a,b: a*np.abs(np.sin(x) + b)
+        self.descriptor = r'$a \times |\sin(x)| + b$'
+        self.symbols_list = [r'$a$']
+
+        self.guess = kwargs.get('guess',None)
+        if not self.guess:
+            self.guess = (y.max(),0)
+        self.perform_fit(guess = self.guess)
+
+        if not self._flag_fit_error:
+            if kwargs.get('print_result',False):
+                self.print_result()
+            if kwargs.get('plot_result',False):
+                self.plot_result()
+
 class Maccas_fit(Fit_1D):
 
     def __init__(self,x,y,**kwargs):
@@ -321,6 +481,46 @@ class Maccas_fit(Fit_1D):
         self.guess = kwargs.get('guess',None)
         if not self.guess:
             self.guess = (0,1,0)
+        self.perform_fit(guess = self.guess)
+
+        if not self._flag_fit_error:
+            if kwargs.get('print_result',False):
+                self.print_result()
+            if kwargs.get('plot_result',False):
+                self.plot_result()
+
+class Maccas_fit2(Fit_1D):
+
+    def __init__(self,x,y,**kwargs):
+
+        super().__init__(x,y)
+        self.function = lambda x,a,b,c: a + b*np.abs(np.sin((x - c)/2))
+        self.descriptor = r'a + b \times |\sin((x - c)/2)|)$'
+        self.symbols_list = [r'$a$',r'$b$',r'$c$']
+
+        self.guess = kwargs.get('guess',None)
+        if not self.guess:
+            self.guess = (0,1,0)
+        self.perform_fit(guess = self.guess)
+
+        if not self._flag_fit_error:
+            if kwargs.get('print_result',False):
+                self.print_result()
+            if kwargs.get('plot_result',False):
+                self.plot_result()
+
+class Maccas_fit3(Fit_1D):
+
+    def __init__(self,x,y,**kwargs):
+
+        super().__init__(x,y)
+        self.function = lambda x,a,b: a + b*np.abs(np.sin((x - np.pi)/2))
+        self.descriptor = r'$a + b \times |\sin((x - \pi)/2)|$'
+        self.symbols_list = [r'$a$',r'$b$']
+
+        self.guess = kwargs.get('guess',None)
+        if not self.guess:
+            self.guess = (0,1)
         self.perform_fit(guess = self.guess)
 
         if not self._flag_fit_error:
@@ -395,19 +595,24 @@ class Gaussian_fit(Fit_1D):
             if kwargs.get('plot_result',False):
                 self.plot_result()
 
+<<<<<<< HEAD
 
+
+
+=======
+>>>>>>> 3af10edc7a58f1a83c578c28d1da6db5cc151fdb
 class Lorentzian_fit(Fit_1D):
 
     def __init__(self,x,y,**kwargs):
 
         super().__init__(x,y)
-        self.function = lambda x,a,b,c: a * (b / ((x-c)**2 + b**2))
-        self.descriptor = r'test'
-        self.symbols_list = [r'$a$',r'$b$',r'$c$']
+        self.function = lambda x,a,b,c,d: a * (b / ((x-c)**2 + b**2)) + d
+        self.descriptor = r'$a * \frac{b}{(x-c)^2 + b^2} + d$'
+        self.symbols_list = [r'$a$',r'$b$',r'$c$',r'$d$']
 
         self.guess = kwargs.get('guess',None)
         if not self.guess:
-            self.guess = (max(self.y),1,1,0)
+            self.guess = (max(self.y),1,1,0,0)
         self.perform_fit(guess = self.guess)
 
         if not self._flag_fit_error:

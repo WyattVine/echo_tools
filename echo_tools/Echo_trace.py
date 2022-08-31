@@ -197,7 +197,7 @@ class Echo_trace():
         order: order of polynomial used to fit baseline. (1, 2 or 3)
         '''
 
-        fit_classes = {1: Linear_fit, 2: Quadratic_fit, 3: Cubic_fit}
+        fit_classes = {1: Linear_fit, 2: Quadratic_fit}#, 3: Cubic_fit}
         self.baseline_fits = {i : fit_classes[order](self.noise_data['time'],self.noise_data[i],**kwargs) for i in ['I','Q']}
         for key,val in self.baseline_fits.items():
             self.data[key] = self.data[key] - np.array([val.function(i,*val.params) for i in self.data['time']])
@@ -253,7 +253,7 @@ class Echo_trace():
     def fourier_transform(self,plot=True,save_name=None,**kwargs):
 
         self.fourier_data = pd.DataFrame(index = self.time.index, columns = ['freq','I','Q'])
-        self.fourier_data['freq'] = sp.fftpack.fftfreq(self.fourier_data.shape[0],2e-9)
+        self.fourier_data['freq'] = sp.fftpack.fftfreq(self.fourier_data.shape[0],self.dt*1e-6)
         self.fourier_data['I'] = sp.fftpack.fft(self.I.to_numpy())
         self.fourier_data['Q'] = sp.fftpack.fft(self.Q.to_numpy())
 

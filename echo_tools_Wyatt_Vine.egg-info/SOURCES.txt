@@ -2,7 +2,10 @@ README.md
 setup.py
 echo_tools/Cooling_Sweep_experiment.py
 echo_tools/Echo_trace.py
+echo_tools/Multi_sweep_experiment.py
 echo_tools/Rabi_measurement.py
+echo_tools/Self_oscillation_experiment.py
+echo_tools/Sweep_2D_experiment.py
 echo_tools/Sweep_experiment.py
 echo_tools/T1_measurement.py
 echo_tools/__init__.py
