@@ -6,7 +6,7 @@ import matplotlib as mpl
 from cycler import cycler
 
 def color_palette():
-    return(['#20639B','#C4000D','#67BC25','#F68100'])
+    return(['#20639B','#C4000D','#F68100','#67BC25','#FFC107'])
 
 def update_matplot_style():
 
